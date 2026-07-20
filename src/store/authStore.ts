@@ -12,7 +12,7 @@ interface AuthState {
 
 const STORAGE_KEY = 'waroengkoe_auth';
 
-function mapBackendUser(u: any): User {
+export function mapBackendUser(u: any): User {
   return {
     id: String(u.id),
     name: u.name,

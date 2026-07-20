@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
+import { API_BASE_URL } from '@/lib/api';
 import Icon from '@/components/Icon';
 
 export default function Login() {
@@ -67,17 +68,10 @@ export default function Login() {
             </h2>
           </div>
 
-          {/* Google Login - First */}
-          <button
-            onClick={() => {
-              // Simulated Google OAuth redirect/success in frontend-only version
-              setLoading(true);
-              setTimeout(() => {
-                login('admin@waroengkoe.com', 'password');
-                navigate('/kasir', { replace: true });
-              }, 500);
-            }}
-            className="w-full py-4 px-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] font-black text-slate-700 dark:text-slate-400 uppercase tracking-widest rounded-xl transition-all hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center justify-center gap-4 shadow-sm active:scale-[0.98] cursor-pointer"
+          {/* Google Login */}
+          <a
+            href={`${API_BASE_URL}/auth/google`}
+            className="w-full py-4 px-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] font-black text-slate-700 dark:text-slate-400 uppercase tracking-widest rounded-xl transition-all hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center justify-center gap-4 shadow-sm active:scale-[0.98] cursor-pointer no-underline"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -86,7 +80,7 @@ export default function Login() {
               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
             </svg>
             <span>Masuk via Google</span>
-          </button>
+          </a>
 
           {/* Divider */}
           <div className="relative my-8">

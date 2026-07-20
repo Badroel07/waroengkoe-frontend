@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Auth/Login';
+import GoogleCallback from './pages/Auth/GoogleCallback';
 import Dashboard from './pages/Dashboard/Dashboard';
 import KasirIndex from './pages/Kasir/Index';
 import BarangIndex from './pages/Barang/Index';
@@ -37,6 +38,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/auth/google/callback" element={<GoogleCallback />} />
 
       {/* Protected Routes */}
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />

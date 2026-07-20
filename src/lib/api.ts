@@ -1,6 +1,6 @@
 import { useLoadingStore } from '@/store/loadingStore';
 
-const API_BASE_URL = 'https://warungbunda.my.id';
+export const API_BASE_URL = 'https://warungbunda.my.id';
 
 export function dataURLtoBlob(dataurl: string): Blob {
   const arr = dataurl.split(',');
