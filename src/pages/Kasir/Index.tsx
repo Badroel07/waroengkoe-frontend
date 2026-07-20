@@ -544,8 +544,16 @@ export default function KasirIndex() {
 
   // Global Stores
   const products = useProductStore((s) => s.products);
+  const fetchProducts = useProductStore((s) => s.fetchProducts);
   const categoriesList = useCategoryStore((s) => s.categories);
+  const fetchCategories = useCategoryStore((s) => s.fetchCategories);
   const categories = useMemo(() => categoriesList.map(c => c.nama), [categoriesList]);
+
+  // Fetch data on mount
+  useEffect(() => {
+    fetchProducts();
+    fetchCategories();
+  }, [fetchProducts, fetchCategories]);
   
   const { items: cart, addItem, updateQty, updateCartItemQty, updateSatuan, removeItem: removeFromCart, clearCart, getTotals } = useCartStore();
 
