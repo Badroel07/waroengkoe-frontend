@@ -17,15 +17,25 @@ export default function RiwayatTransaksi() {
   const user = useAuthStore((s) => s.user);
   const transactions = useTransactionStore((s) => s.transactions);
   const fetchTransactions = useTransactionStore((s) => s.fetchTransactions);
+  const cursorNext = useTransactionStore((s) => s.cursorNext);
+  const cursorPrev = useTransactionStore((s) => s.cursorPrev);
+  const hasMore = useTransactionStore((s) => s.hasMore);
   const getStats = useTransactionStore((s) => s.getStats);
   const getKasirList = useTransactionStore((s) => s.getKasirList);
   const bulkDelete = useTransactionStore((s) => s.bulkDelete);
   const [isLoading, setIsLoading] = useState(true);
+  const currentFilters = useRef<Record<string, string>>({});
+
+  const loadPage = (cursor?: string) => {
+    setIsLoading(true);
+    const params = cursor ? { ...currentFilters.current, cursor } : { ...currentFilters.current };
+    fetchTransactions(params).finally(() => setIsLoading(false));
+  };
 
   useEffect(() => {
-    setIsLoading(true);
-    fetchTransactions().finally(() => setIsLoading(false));
-  }, [fetchTransactions]);
+    currentFilters.current = {};
+    loadPage();
+  }, []);
 
   const RiwayatSkeleton = () => {
     return (
@@ -119,7 +129,6 @@ export default function RiwayatTransaksi() {
   const { confirmDanger } = useAlert();
   const toast = useToast();
 
-  // Load preserved filter states from sessionStorage on mount (if present)
   const [search, setSearch] = useState(() => sessionStorage.getItem('riwayat_search') || '');
   const debouncedSearch = useDebounce(search, 300);
 
@@ -127,8 +136,7 @@ export default function RiwayatTransaksi() {
   const [endDate, setEndDate] = useState(() => sessionStorage.getItem('riwayat_end_date') || '');
   const [status, setStatus] = useState(() => sessionStorage.getItem('riwayat_status') || 'Semua');
   const [kasirId, setKasirId] = useState(() => sessionStorage.getItem('riwayat_kasir_id') || '');
-  const [currentPage, setCurrentPage] = useState(() => parseInt(sessionStorage.getItem('riwayat_current_page') || '1'));
-  
+
   const [selected, setSelected] = useState<string[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -136,106 +144,30 @@ export default function RiwayatTransaksi() {
 
   const listRef = useRef<HTMLDivElement>(null);
 
+  const buildParams = () => ({
+    ...(debouncedSearch && { q: debouncedSearch }),
+    ...(startDate && { start_date: startDate }),
+    ...(endDate && { end_date: endDate }),
+    ...(status !== 'Semua' && { status }),
+    ...(kasirId && { kasir_id: kasirId }),
+  });
+
+  // Fetch on filter change (debounced search triggers via debounce)
+  useEffect(() => {
+    fetchTransactions(buildParams());
+  }, [debouncedSearch, startDate, endDate, status, kasirId]);
+
   const stats = getStats();
   const kasirs = getKasirList();
 
-  // Handle Scroll Preservation on Mount
-  useEffect(() => {
-    const savedScrollY = sessionStorage.getItem('riwayat_scroll_y');
-    const savedHeight = sessionStorage.getItem('riwayat_list_height');
+  // Sync filter state with sessionStorage
+  useEffect(() => { sessionStorage.setItem('riwayat_search', search); }, [search]);
+  useEffect(() => { sessionStorage.setItem('riwayat_start_date', startDate); }, [startDate]);
+  useEffect(() => { sessionStorage.setItem('riwayat_end_date', endDate); }, [endDate]);
+  useEffect(() => { sessionStorage.setItem('riwayat_status', status); }, [status]);
+  useEffect(() => { sessionStorage.setItem('riwayat_kasir_id', kasirId); }, [kasirId]);
 
-    if (savedHeight) {
-      setMinHeight(savedHeight);
-    }
-
-    if (savedScrollY) {
-      let attempts = 0;
-      const restore = () => {
-        const contentArea = document.getElementById('main-content');
-        if (contentArea) {
-          contentArea.scrollTop = parseInt(savedScrollY);
-        } else {
-          window.scrollTo(0, parseInt(savedScrollY));
-        }
-
-        const currentPos = contentArea ? contentArea.scrollTop : window.scrollY;
-
-        if (Math.abs(currentPos - parseInt(savedScrollY)) > 5 && attempts < 50) {
-          attempts++;
-          requestAnimationFrame(restore);
-        } else {
-          setMinHeight('');
-          sessionStorage.removeItem('riwayat_scroll_y');
-          sessionStorage.removeItem('riwayat_list_height');
-        }
-      };
-      requestAnimationFrame(restore);
-    }
-  }, []);
-
-  // Sync state changes with sessionStorage
-  useEffect(() => {
-    sessionStorage.setItem('riwayat_search', search);
-  }, [search]);
-  useEffect(() => {
-    sessionStorage.setItem('riwayat_start_date', startDate);
-  }, [startDate]);
-  useEffect(() => {
-    sessionStorage.setItem('riwayat_end_date', endDate);
-  }, [endDate]);
-  useEffect(() => {
-    sessionStorage.setItem('riwayat_status', status);
-  }, [status]);
-  useEffect(() => {
-    sessionStorage.setItem('riwayat_kasir_id', kasirId);
-  }, [kasirId]);
-  useEffect(() => {
-    sessionStorage.setItem('riwayat_current_page', String(currentPage));
-  }, [currentPage]);
-
-  // Filter transactions
-  const filtered = transactions.filter((t) => {
-    // Invoice Search
-    if (debouncedSearch && !t.no_invoice.toLowerCase().includes(debouncedSearch.toLowerCase())) {
-      return false;
-    }
-    // Status
-    if (status !== 'Semua') {
-      if (t.status.toLowerCase() !== status.toLowerCase()) return false;
-    }
-    // Kasir
-    if (kasirId && t.kasir_id !== kasirId) {
-      return false;
-    }
-    // Date range
-    if (startDate) {
-      const tDate = new Date(t.created_at);
-      const sDate = new Date(startDate + 'T00:00:00');
-      if (tDate < sDate) return false;
-    }
-    if (endDate) {
-      const tDate = new Date(t.created_at);
-      const eDate = new Date(endDate + 'T23:59:59');
-      if (tDate > eDate) return false;
-    }
-    return true;
-  });
-
-  // Pagination simulation
-  const itemsPerPage = 10;
-  const totalPages = Math.ceil(filtered.length / itemsPerPage);
-  const paginatedTransactions = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-
-  const hasNextPage = currentPage < totalPages;
-  const hasPrevPage = currentPage > 1;
-
-  // Reset page when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [debouncedSearch, startDate, endDate, status, kasirId]);
-
-  // Pending transactions for select all
-  const pendingTransactions = filtered.filter((t) => t.status.toLowerCase() === 'pending');
+  const pendingTransactions = transactions.filter((t) => t.status.toLowerCase() === 'pending');
   const allPendingSelected = pendingTransactions.length > 0 && pendingTransactions.every((t) => selected.includes(t.id));
 
   const toggleSelect = (id: string) => {
@@ -253,19 +185,14 @@ export default function RiwayatTransaksi() {
     setEndDate('');
     setStatus('Semua');
     setKasirId('');
-    setCurrentPage(1);
     setSelected([]);
     setIsSelectionMode(false);
   };
 
   const handleBulkDelete = async () => {
     if (selected.length === 0) return;
-    const confirmed = await confirmDanger(
-      'Hapus Banyak Transaksi',
-      `Yakin ingin menghapus ${selected.length} transaksi Pending ini? Tindakan ini tidak dapat dibatalkan.`
-    );
+    const confirmed = await confirmDanger('Hapus Banyak Transaksi', `Yakin ingin menghapus ${selected.length} transaksi Pending ini? Tindakan ini tidak dapat dibatalkan.`);
     if (!confirmed) return;
-
     setProcessing(true);
     try {
       bulkDelete(selected);
@@ -274,33 +201,27 @@ export default function RiwayatTransaksi() {
       toast.success(`${selected.length} transaksi pending berhasil dihapus.`);
     } catch (err) {
       toast.error('Gagal menghapus transaksi.');
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const getScrollPos = () => {
-    const contentArea = document.getElementById('main-content');
-    return window.innerWidth < 768 ? window.scrollY : contentArea ? contentArea.scrollTop : 0;
+    } finally { setProcessing(false); }
   };
 
   const goToDetail = (id: string) => {
-    const scrollY = getScrollPos();
-    sessionStorage.setItem('riwayat_scroll_y', String(scrollY));
-    if (listRef.current) {
-      sessionStorage.setItem('riwayat_list_height', listRef.current.offsetHeight + 'px');
-    }
     navigate(`/kasir/riwayat/${id}`);
   };
 
-  // Option configuration for CustomSelect status filter
+  const goPrevPage = () => {
+    if (cursorPrev) fetchTransactions({ ...buildParams(), cursor: cursorPrev });
+  };
+
+  const goNextPage = () => {
+    if (cursorNext) fetchTransactions({ ...buildParams(), cursor: cursorNext });
+  };
+
   const statusOptions = [
     { value: 'Semua', label: 'Semua Status', icon: 'list', count: stats.total },
     { value: 'Selesai', label: 'Selesai', icon: 'check_circle', count: stats.sukses },
     { value: 'Pending', label: 'Belum Dibayar', icon: 'pending', count: stats.pending },
   ];
 
-  // Option configuration for CustomSelect cashier filter
   const cashierOptions = [
     { value: '', label: 'Semua Kasir' },
     ...kasirs.map((k) => ({ value: k.id, label: k.name })),
@@ -421,7 +342,7 @@ export default function RiwayatTransaksi() {
               </div>
             </div>
 
-            {(search || startDate || endDate || kasirId || status !== 'Semua') && (
+              {(search || startDate || endDate || kasirId || status !== 'Semua') && (
               <button
                 type="button"
                 onClick={resetFilters}
@@ -466,7 +387,7 @@ export default function RiwayatTransaksi() {
         <div ref={listRef} style={minHeight ? { minHeight } : undefined} className="space-y-3">
           {isLoading ? (
             <RiwayatSkeleton />
-          ) : paginatedTransactions.length === 0 ? (
+          ) : transactions.length === 0 ? (
             <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-12 sm:p-24 text-center transition-all shadow-sm flex flex-col items-center justify-center">
               <div className="flex flex-col items-center justify-center text-center w-full">
                 <div className="w-20 h-20 rounded-full bg-slate-50 dark:bg-slate-850 flex items-center justify-center mb-6 border border-dashed border-slate-300 dark:border-slate-700 shadow-inner mx-auto group">
@@ -524,7 +445,7 @@ export default function RiwayatTransaksi() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 dark:divide-slate-800 bg-white dark:bg-slate-950">
-                      {paginatedTransactions.map((trx) => {
+                      {transactions.map((trx) => {
                         const isPending = trx.status.toLowerCase() === 'pending';
                         const isSelected = selected.includes(trx.id);
                         return (
@@ -618,20 +539,20 @@ export default function RiwayatTransaksi() {
                 </div>
 
                 {/* Desktop Pagination */}
-                {totalPages > 1 && (
+                {(cursorPrev || hasMore) && (
                   <div className="flex items-center justify-end px-8 py-6 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 transition-all">
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                        disabled={!hasPrevPage}
+                        onClick={goPrevPage}
+                        disabled={!cursorPrev}
                         className="px-6 h-11 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center gap-2 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-850 disabled:opacity-30 transition-all shadow-sm cursor-pointer active:scale-[0.98]"
                       >
                         <Icon name="chevron_left" className="text-xl" />
                         <span className="text-[11px] font-black uppercase tracking-widest hidden sm:inline">Sebelumnya</span>
                       </button>
                       <button
-                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                        disabled={!hasNextPage}
+                        onClick={goNextPage}
+                        disabled={!hasMore}
                         className="px-6 h-11 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center gap-2 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-850 disabled:opacity-30 transition-all shadow-sm cursor-pointer active:scale-[0.98]"
                       >
                         <span className="text-[11px] font-black uppercase tracking-widest hidden sm:inline">Berikutnya</span>
@@ -671,7 +592,7 @@ export default function RiwayatTransaksi() {
               )}
 
               <div className="grid grid-cols-1 gap-4 md:hidden">
-                {paginatedTransactions.map((trx) => {
+                {transactions.map((trx) => {
                   const isPending = trx.status.toLowerCase() === 'pending';
                   const isSelected = selected.includes(trx.id);
                   return (
@@ -769,19 +690,19 @@ export default function RiwayatTransaksi() {
               </div>
 
               {/* Mobile Pagination */}
-              {totalPages > 1 && (
+              {(cursorPrev || hasMore) && (
                 <div className="flex items-center gap-4 mt-6 pt-4 justify-center md:hidden">
                   <button
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    disabled={!hasPrevPage}
+                    onClick={goPrevPage}
+                    disabled={!cursorPrev}
                     className="px-6 h-11 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-center gap-3 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-850 disabled:opacity-30 transition-all cursor-pointer active:scale-[0.98]"
                   >
                     <Icon name="chevron_left" className="text-xl" />
                     <span className="text-[11px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400">Sebelumnya</span>
                   </button>
                   <button
-                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={!hasNextPage}
+                    onClick={goNextPage}
+                    disabled={!hasMore}
                     className="px-6 h-11 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-center gap-3 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-850 disabled:opacity-30 transition-all cursor-pointer active:scale-[0.98]"
                   >
                     <span className="text-[11px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400">Berikutnya</span>

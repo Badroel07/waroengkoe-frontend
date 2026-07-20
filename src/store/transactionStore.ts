@@ -4,9 +4,35 @@ import { generateId } from '@/lib/utils';
 import { apiFetch } from '@/lib/api';
 import { useProductStore } from './productStore';
 
+interface FetchParams {
+  cursor?: string;
+  q?: string;
+  start_date?: string;
+  end_date?: string;
+  status?: string;
+  kasir_id?: string;
+}
+
+interface CursorMeta {
+  nextCursor: string | null;
+  prevCursor: string | null;
+  hasMore: boolean;
+}
+
 interface TransactionState {
   transactions: Transaction[];
-  fetchTransactions: () => Promise<void>;
+  cursorNext: string | null;
+  cursorPrev: string | null;
+  hasMore: boolean;
+  kasirs: { id: number; name: string }[];
+  serverStats: {
+    todayCount: number;
+    countSelesai: number;
+    countPending: number;
+    countAll: number;
+    totalMenunggak: number;
+  } | null;
+  fetchTransactions: (params?: FetchParams) => Promise<void>;
   fetchTransactionDetail: (id: string) => Promise<Transaction | undefined>;
   addTransaction: (data: {
     items: TransactionItem[];
@@ -48,64 +74,83 @@ function save(data: Transaction[]) {
 }
 
 function mapBackendTransaction(t: any): Transaction {
+  const mapItem = (item: any) => ({
+    id: String(item.id),
+    barang_id: item.barang_id ? String(item.barang_id) : undefined,
+    nama_barang: item.nama_barang || item.nama || '',
+    sku: item.sku || '',
+    qty: Number(item.qty || item.jumlah || item.jumlah_terjual || 0),
+    satuan: item.satuan || item.nama_satuan || 'Pcs',
+    harga: Number(item.harga || item.harga_satuan || 0),
+    subtotal: Number(item.subtotal || 0),
+    diskon: Number(item.diskon || 0),
+    gambar_url: item.gambar_url || item.gambar || null,
+  });
+
   return {
     id: String(t.id),
     no_invoice: t.no_invoice,
-    created_at: t.created_at,
+    created_at: t.created_at_iso || t.created_at,
+    created_at_day: t.created_at_day || undefined,
     kasir: t.kasir || t.user?.name || 'Unknown',
-    kasir_id: String(t.kasir_id || t.user_id || '1'),
+    kasir_id: String(t.kasir_id || t.user_id || ''),
     total_harga: Number(t.total_harga),
     total_bayar: Number(t.total_bayar),
     kembalian: Number(t.kembalian),
     status: (t.status || '').toLowerCase(),
-    metode_pembayaran: t.metode_pembayaran === 'tunai' ? 'Tunai' : (t.metode_pembayaran === 'qris' ? 'QRIS' : 'Transfer'),
+    metode_pembayaran: t.metode_pembayaran === 'tunai' ? 'Tunai' : (t.metode_pembayaran === 'qris' ? 'QRIS' : (t.metode_pembayaran === 'Transfer' ? 'Transfer' : t.metode_pembayaran)),
     diskon_global: Number(t.diskon_global || 0),
     catatan: t.catatan || '',
-    items: (t.items || []).map((item: any) => ({
-      id: String(item.id),
-      barang_id: item.barang_id ? String(item.barang_id) : undefined,
-      nama_barang: item.nama_barang,
-      sku: item.sku || '',
-      qty: Number(item.jumlah || item.jumlah_terjual || 0),
-      satuan: item.nama_satuan || 'Pcs',
-      harga: Number(item.harga_satuan || 0),
-      subtotal: Number(item.subtotal || 0),
-      diskon: Number(item.diskon || 0),
-      gambar_url: item.gambar || null,
-    })),
+    items: (t.items || []).map(mapItem),
   };
 }
-
-
 
 export const useTransactionStore = create<TransactionState>((set, get) => {
   const initial = load();
 
-  if (localStorage.getItem('waroengkoe_token')) {
-    apiFetch('/api/transaksi/riwayat')
-      .then((res) => {
-        const data = Array.isArray(res) ? res : res.data || [];
-        const formatted = data.map(mapBackendTransaction);
-        set({ transactions: formatted }); save(formatted);
-      }).catch(err => console.error(err));
-  }
-
   return {
     transactions: initial,
+    cursorNext: null,
+    cursorPrev: null,
+    hasMore: false,
+    kasirs: [],
+    serverStats: null,
 
-    fetchTransactions: async () => {
+    fetchTransactions: async (params) => {
       try {
-        const res = await apiFetch('/api/transaksi/riwayat');
-        const data = Array.isArray(res) ? res : res.data || [];
-        const formatted = data.map(mapBackendTransaction);
-        set({ transactions: formatted }); save(formatted);
-      } catch (err) { console.error(err); }
+        const query = new URLSearchParams();
+        if (params?.cursor) query.set('cursor', params.cursor);
+        if (params?.q) query.set('q', params.q);
+        if (params?.start_date) query.set('start_date', params.start_date);
+        if (params?.end_date) query.set('end_date', params.end_date);
+        if (params?.status && params.status !== 'Semua') query.set('status', params.status);
+        if (params?.kasir_id) query.set('kasir_id', params.kasir_id);
+
+        const qs = query.toString();
+        const res = await apiFetch(`/kasir/riwayat${qs ? `?${qs}` : ''}`);
+
+        const history = res.history || { data: [], meta: { nextCursor: null, prevCursor: null, hasMore: false } };
+        const formatted = (history.data || []).map(mapBackendTransaction);
+
+        set({
+          transactions: formatted,
+          cursorNext: history.meta?.nextCursor || null,
+          cursorPrev: history.meta?.prevCursor || null,
+          hasMore: history.meta?.hasMore || false,
+          kasirs: res.kasirs || [],
+          serverStats: res.stats || null,
+        });
+
+        save(formatted);
+      } catch (err) {
+        console.error(err);
+      }
     },
 
     fetchTransactionDetail: async (id: string) => {
       try {
-        const res = await apiFetch(`/api/transaksi/${id}`);
-        const raw = res.data || res;
+        const res = await apiFetch(`/kasir/riwayat/detail/${id}`);
+        const raw = res.transaksi || res;
         const formatted = mapBackendTransaction(raw);
         set((s) => {
           const exists = s.transactions.some((t) => t.id === id);
@@ -162,12 +207,9 @@ export const useTransactionStore = create<TransactionState>((set, get) => {
       });
       useProductStore.getState().fetchProducts();
 
-      const nextRes = await apiFetch('/api/transaksi/riwayat');
-      const nextData = Array.isArray(nextRes) ? nextRes : nextRes.data || [];
-      const formattedList = nextData.map(mapBackendTransaction);
-      set({ transactions: formattedList }); save(formattedList);
+      await get().fetchTransactions();
 
-      const saved = formattedList.find((t: Transaction) => t.no_invoice === res.data?.no_invoice) || mapBackendTransaction(res.data || res);
+      const saved = get().transactions.find((t: Transaction) => t.no_invoice === res.data?.no_invoice) || mapBackendTransaction(res.data || res);
       return saved;
     },
 
@@ -196,11 +238,8 @@ export const useTransactionStore = create<TransactionState>((set, get) => {
           method: 'PUT',
           body: JSON.stringify(body),
         });
-        
-        const nextRes = await apiFetch('/api/transaksi/riwayat');
-        const nextData = Array.isArray(nextRes) ? nextRes : nextRes.data || [];
-        const formatted = nextData.map(mapBackendTransaction);
-        set({ transactions: formatted }); save(formatted);
+
+        await get().fetchTransactions();
       } catch (err) {
         set({ transactions: old }); save(old);
         throw err;
@@ -234,13 +273,27 @@ export const useTransactionStore = create<TransactionState>((set, get) => {
     },
 
     getStats: () => {
+      const ss = get().serverStats;
+      if (ss) {
+        return {
+          total: ss.countAll,
+          pending: ss.countPending,
+          sukses: ss.countSelesai,
+          todayCount: ss.todayCount,
+          totalMenunggak: ss.totalMenunggak,
+        };
+      }
+
       const ts = get().transactions;
       const now = new Date();
       const todayStr = now.toDateString();
 
       const pending = ts.filter((t) => t.status.toLowerCase() === 'pending');
       const sukses = ts.filter((t) => t.status.toLowerCase() === 'selesai');
-      const today = ts.filter((t) => new Date(t.created_at).toDateString() === todayStr);
+      const today = ts.filter((t) => {
+        const d = new Date(t.created_at);
+        return d.toDateString() === todayStr;
+      });
 
       const totalMenunggak = pending.reduce((sum, t) => {
         const sisa = Math.max(0, t.total_harga - t.total_bayar);
@@ -265,6 +318,11 @@ export const useTransactionStore = create<TransactionState>((set, get) => {
     },
 
     getKasirList: () => {
+      const serverKasirs = get().kasirs;
+      if (serverKasirs.length > 0) {
+        return serverKasirs.map((k) => ({ id: String(k.id), name: k.name }));
+      }
+
       const ts = get().transactions;
       const cache: Record<string, string> = {};
       ts.forEach((t) => {
@@ -277,3 +335,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => {
   };
 });
 
+// Initial fetch after store created — avoid calling get() during creation
+if (typeof window !== 'undefined' && localStorage.getItem('waroengkoe_token')) {
+  useTransactionStore.getState().fetchTransactions();
+}
