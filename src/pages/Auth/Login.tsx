@@ -9,7 +9,7 @@ export default function Login() {
   const login = useAuthStore((s) => s.login);
   const isAuthenticated = useAuthStore((s) => s.user !== null);
 
-  const [email, setEmail] = useState('admin@waroengkoe');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(false);
   const [error, setError] = useState('');
@@ -173,25 +173,6 @@ export default function Login() {
               )}
             </button>
           </form>
-
-          {/* Demo Accounts Box */}
-          <div className="mt-8 p-4 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/60 shadow-inner">
-            <p className="text-[9px] font-black uppercase tracking-wider text-slate-500 mb-2">Akun Demo</p>
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-500">Admin:</span>
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">admin@waroengkoe.com</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-500">Kasir:</span>
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">kasir@waroengkoe.com</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-500">Password:</span>
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">(sembarang)</span>
-              </div>
-            </div>
-          </div>
 
           {/* Footer */}
           <p className="mt-12 text-center text-[11px] font-black text-slate-500 dark:text-slate-600 uppercase tracking-[0.2em]">
