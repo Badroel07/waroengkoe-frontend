@@ -89,10 +89,10 @@ export default function Sidebar({
       onMouseLeave={handleMouseLeave}
       className={`
         flex flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-4.5
-        fixed z-50 h-full shadow-2xl md:shadow-sm will-change-[transform,width,padding]
+        fixed z-50 h-full shadow-2xl md:shadow-sm
         max-md:transition-transform max-md:duration-300 max-md:ease-[cubic-bezier(0.32,0.72,0,1)]
         md:transition-[width,padding] md:duration-300 md:ease-in-out
-        ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+        ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0 max-md:invisible max-md:pointer-events-none'}
         ${collapsed ? 'md:w-20 items-center' : 'md:w-64'}
         max-md:w-[85vw] max-md:max-w-[300px] max-md:items-stretch
       `}
