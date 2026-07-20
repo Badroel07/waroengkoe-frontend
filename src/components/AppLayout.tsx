@@ -48,10 +48,13 @@ export default function AppLayout({
   const location = useLocation();
   const user = useAuthStore((s) => s.user);
 
-  const isIndexPage =
-    location.pathname.endsWith('/Index') ||
-    location.pathname === '/dashboard' ||
-    location.pathname.includes('/kasir/riwayat');
+  const indexPaths = [
+    '/', '/dashboard', '/kasir', '/kasir/riwayat',
+    '/barang', '/kategori', '/satuan',
+    '/pengguna', '/pengaturan', '/keuntungan',
+    '/audit-stok', '/log-aktivitas',
+  ];
+  const isIndexPage = indexPaths.includes(location.pathname);
 
   const finalHideBottomNav =
     hideBottomNav !== undefined ? hideBottomNav : !isIndexPage;
