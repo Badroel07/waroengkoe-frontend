@@ -1,21 +1,4 @@
-import { useEffect } from 'react';
-import { useLoadingStore } from '@/store/loadingStore';
-
 export default function Skeleton({ className = '' }: { className?: string }) {
-  useEffect(() => {
-    const store = useLoadingStore.getState();
-    store.setSkeletonLoading(true);
-    return () => {
-      // Small timeout to allow potential layout transitions or other skeletons to remain/cleanup
-      setTimeout(() => {
-        const hasSkeletons = document.querySelectorAll('.animate-shimmer').length > 0;
-        if (!hasSkeletons) {
-          useLoadingStore.getState().setSkeletonLoading(false);
-        }
-      }, 50);
-    };
-  }, []);
-
   return (
     <div
       className={`rounded-lg bg-slate-200 dark:bg-slate-850 animate-shimmer ${className}`}

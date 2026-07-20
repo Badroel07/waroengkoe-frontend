@@ -5,12 +5,10 @@ interface LoadingState {
   errorType: 'timeout' | 'network' | null;
   timeoutId: ReturnType<typeof setTimeout> | null;
   activeRequests: number;
-  isSkeletonLoading: boolean; // Menandai jika ada komponen yang sedang memuat skeleton
   startLoading: (duration?: number) => void;
   stopLoading: () => void;
   setNetworkOffline: () => void;
   resetLoading: () => void;
-  setSkeletonLoading: (val: boolean) => void;
 }
 
 export const useLoadingStore = create<LoadingState>((set, get) => ({
@@ -18,7 +16,6 @@ export const useLoadingStore = create<LoadingState>((set, get) => ({
   errorType: null,
   timeoutId: null,
   activeRequests: 0,
-  isSkeletonLoading: false,
 
   startLoading: (duration = 30000) => {
     const state = get();
@@ -50,10 +47,6 @@ export const useLoadingStore = create<LoadingState>((set, get) => ({
   resetLoading: () => {
     const state = get();
     if (state.timeoutId) clearTimeout(state.timeoutId);
-    set({ isLoading: false, errorType: null, timeoutId: null, activeRequests: 0, isSkeletonLoading: false });
-  },
-
-  setSkeletonLoading: (val: boolean) => {
-    set({ isSkeletonLoading: val });
+    set({ isLoading: false, errorType: null, timeoutId: null, activeRequests: 0 });
   },
 }));

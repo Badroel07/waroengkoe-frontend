@@ -15,8 +15,6 @@ import LoadingErrorBoundary from './LoadingErrorBoundary';
 import { useAuthStore } from '@/store/authStore';
 import Icon from './Icon';
 
-import { useLoadingStore } from '@/store/loadingStore';
-
 interface SidebarContextType {
   sidebarMobileOpen: boolean;
   setSidebarMobileOpen: (open: boolean) => void;
@@ -62,38 +60,8 @@ export default function AppLayout({
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
   const toast = useToast();
 
-  const [isNavigating, setIsNavigating] = useState(false);
-  const [progressState, setProgressState] = useState<'idle' | 'loading' | 'finishing'>('idle');
-
   const toggleMobileSidebar = () => setSidebarMobileOpen((v) => !v);
   const closeMobileSidebar = () => setSidebarMobileOpen(false);
-
-  // Simple loading indicator simulation on location changes
-  useEffect(() => {
-    let timeout: ReturnType<typeof setTimeout>;
-    let finishTimeout: ReturnType<typeof setTimeout>;
-
-    // Delay showing the loading progress bar by 500ms
-    const startDelayTimeout = setTimeout(() => {
-      setIsNavigating(true);
-      setProgressState('loading');
-    }, 500);
-
-    timeout = setTimeout(() => {
-      clearTimeout(startDelayTimeout);
-      setProgressState('finishing');
-      finishTimeout = setTimeout(() => {
-        setProgressState('idle');
-        setIsNavigating(false);
-      }, 300);
-    }, 700); // Original was 200ms total logic, but we delay start by 500ms so we adjust end relative to it
-
-    return () => {
-      clearTimeout(startDelayTimeout);
-      clearTimeout(timeout);
-      if (finishTimeout) clearTimeout(finishTimeout);
-    };
-  }, [location.pathname]);
 
   // --- ROBUST SCROLL RESTORATION ---
   const prevPathRef = useRef<string>(location.pathname + location.search);
@@ -172,8 +140,6 @@ export default function AppLayout({
     };
   }, [location.pathname, location.search]);
 
-  const isSkeletonLoading = useLoadingStore((s) => s.isSkeletonLoading);
-
   return (
     <SidebarContext.Provider
       value={{
@@ -181,19 +147,6 @@ export default function AppLayout({
         setSidebarMobileOpen,
       }}
     >
-      {/* Top Progress Bar */}
-      {progressState !== 'idle' && !isSkeletonLoading && (
-        <div className="fixed top-0 left-0 right-0 h-[3px] z-[99999] pointer-events-none bg-transparent overflow-hidden">
-          <div
-            className={`h-full bg-[#006eff] shadow-[0_0_8px_rgba(0,110,255,0.6)] transition-all duration-300 ease-out ${
-              progressState === 'loading'
-                ? 'w-[75%] animate-[progressHold_10s_cubic-bezier(0.01,0.95,0.0,1.0)_forwards]'
-                : 'w-full opacity-0'
-            }`}
-          />
-        </div>
-      )}
-
       {/* Main Container */}
       <div className="flex flex-col md:flex-row min-h-screen md:h-screen w-full bg-slate-50 dark:bg-slate-950 md:overflow-hidden">
         {sidebarMobileOpen && (
@@ -266,11 +219,7 @@ export default function AppLayout({
                 </div>
               )}
 
-              <div
-                className={`flex flex-col gap-8 pt-4 md:pt-0 ${
-                  isNavigating ? 'pointer-events-none' : ''
-                } animate-fade-in-up`}
-              >
+              <div className="flex flex-col gap-8 pt-4 md:pt-0 animate-fade-in-up">
                 <LoadingErrorBoundary>{children}</LoadingErrorBoundary>
               </div>
             </div>
