@@ -175,7 +175,7 @@ export default function BottomSheet({ open, onClose, user }: BottomSheetProps) {
               <button
                 key={item.href}
                 onClick={() => { navigate(item.href); onClose(); }}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all duration-200 active:scale-[0.98] ${
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all duration-200 active:scale-[0.98] text-left w-full ${
                   active
                     ? 'bg-blue-50 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400'
                     : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'
