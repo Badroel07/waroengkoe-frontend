@@ -1,3 +1,5 @@
+import { useLoadingStore } from '@/store/loadingStore';
+
 const API_BASE_URL = 'https://warungbunda.my.id';
 
 export function dataURLtoBlob(dataurl: string): Blob {
@@ -40,6 +42,14 @@ export async function apiFetch<T = any>(
     options.signal.addEventListener('abort', () => controller.abort());
   }
 
+  // Intercept loading state with a 500ms delay to avoid loading indicators for fast requests
+  let hasLoaded = false;
+  const loadingDelay = setTimeout(() => {
+    if (!hasLoaded) {
+      useLoadingStore.getState().startLoading(timeoutMs);
+    }
+  }, 500);
+
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {
       ...options,
@@ -73,6 +83,9 @@ export async function apiFetch<T = any>(
 
     return response.json();
   } finally {
+    hasLoaded = true;
+    clearTimeout(loadingDelay);
     clearTimeout(timeoutId);
+    useLoadingStore.getState().stopLoading();
   }
 }

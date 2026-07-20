@@ -3,7 +3,6 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import Icon from './Icon';
 import BottomSheet from './BottomSheet';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useAuthStore } from '@/store/authStore';
 import type { User } from '@/types';
 
 interface BottomNavProps {
@@ -74,7 +73,7 @@ export default function BottomNav({ user }: BottomNavProps) {
               const active = activeIndex === item.index;
               if (item.isCenter) {
                 return (
-                  <button key={item.href} onClick={() => navigate(item.href)} className="relative -top-5 flex flex-col items-center group z-50 transition-transform active:scale-[0.98] w-full justify-center">
+                  <button key={item.href} onClick={() => navigate(item.href)} className="relative -top-5 flex flex-col items-center group z-50 transition-transform active:scale-[0.98] w-full justify-center" aria-label="Kasir">
                     <div className={`flex items-center justify-center rounded-2xl size-13 bg-gradient-to-br from-blue-500 to-indigo-600 text-white border-4 shadow-[0_4px_12px_rgba(29,110,255,0.4)] transition-all duration-200 group-hover:brightness-110 ${active ? 'scale-105' : ''}`} style={{ borderColor: centerBtnBorder }}>
                       <Icon name={item.icon} className="text-[24px]" />
                     </div>
@@ -91,7 +90,7 @@ export default function BottomNav({ user }: BottomNavProps) {
                 </button>
               );
             })}
-            <button onClick={() => setSheetOpen(true)} className={`flex flex-col items-center justify-center w-full h-full py-1 active:scale-[0.98] transition-transform ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-800'}`}>
+            <button onClick={() => setSheetOpen(true)} className={`flex flex-col items-center justify-center w-full h-full py-1 active:scale-[0.98] transition-transform ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-800'}`} aria-label="Menu Lainnya">
               <div className={`flex flex-col items-center justify-center rounded-2xl px-3 py-1.5 transition-all duration-300 ${sheetOpen ? 'text-blue-400' : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-800'}`}>
                 <Icon name="menu" className="text-[20px]" />
               </div>

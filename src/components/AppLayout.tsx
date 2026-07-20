@@ -15,6 +15,8 @@ import LoadingErrorBoundary from './LoadingErrorBoundary';
 import { useAuthStore } from '@/store/authStore';
 import Icon from './Icon';
 
+import { useLoadingStore } from '@/store/loadingStore';
+
 interface SidebarContextType {
   sidebarMobileOpen: boolean;
   setSidebarMobileOpen: (open: boolean) => void;
@@ -65,19 +67,29 @@ export default function AppLayout({
 
   // Simple loading indicator simulation on location changes
   useEffect(() => {
-    setIsNavigating(true);
-    setProgressState('loading');
+    let timeout: ReturnType<typeof setTimeout>;
+    let finishTimeout: ReturnType<typeof setTimeout>;
 
-    const timeout = setTimeout(() => {
+    // Delay showing the loading progress bar by 500ms
+    const startDelayTimeout = setTimeout(() => {
+      setIsNavigating(true);
+      setProgressState('loading');
+    }, 500);
+
+    timeout = setTimeout(() => {
+      clearTimeout(startDelayTimeout);
       setProgressState('finishing');
-      const finishTimeout = setTimeout(() => {
+      finishTimeout = setTimeout(() => {
         setProgressState('idle');
         setIsNavigating(false);
       }, 300);
-      return () => clearTimeout(finishTimeout);
-    }, 200);
+    }, 700); // Original was 200ms total logic, but we delay start by 500ms so we adjust end relative to it
 
-    return () => clearTimeout(timeout);
+    return () => {
+      clearTimeout(startDelayTimeout);
+      clearTimeout(timeout);
+      if (finishTimeout) clearTimeout(finishTimeout);
+    };
   }, [location.pathname]);
 
   // --- ROBUST SCROLL RESTORATION ---
@@ -157,6 +169,8 @@ export default function AppLayout({
     };
   }, [location.pathname, location.search]);
 
+  const isSkeletonLoading = useLoadingStore((s) => s.isSkeletonLoading);
+
   return (
     <SidebarContext.Provider
       value={{
@@ -165,7 +179,7 @@ export default function AppLayout({
       }}
     >
       {/* Top Progress Bar */}
-      {progressState !== 'idle' && (
+      {progressState !== 'idle' && !isSkeletonLoading && (
         <div className="fixed top-0 left-0 right-0 h-[3px] z-[99999] pointer-events-none bg-transparent overflow-hidden">
           <div
             className={`h-full bg-[#006eff] shadow-[0_0_8px_rgba(0,110,255,0.6)] transition-all duration-300 ease-out ${
