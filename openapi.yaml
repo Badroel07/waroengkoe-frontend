@@ -1,0 +1,3036 @@
+openapi: 3.0.3
+info:
+  title: WaroengKoe API
+  description: |
+    REST API untuk aplikasi POS (Point of Sale) WaroengKoe.
+    API ini digunakan oleh aplikasi mobile Android dengan autentikasi Laravel Sanctum (Token-based).
+
+    ## Autentikasi
+    Semua endpoint protected memerlukan header `Authorization: Bearer {token}` yang didapat dari endpoint login.
+
+    ## Idempotency
+    Endpoint transaksi (`POST /api/transaksi`, `PUT /api/transaksi/{id}/complete`) mendukung header `Idempotency-Key` untuk mencegah duplikasi request. Jika header disertakan, response akan di-cache selama 24 jam dan request duplikat akan mengembalikan response yang sama dengan header `Idempotency-Replayed: true`.
+
+    ## Rate Limiting
+    Beberapa endpoint memiliki rate limiting:
+    - `public_catalog`: Rate limit untuk katalog publik
+    - `transactions`: Rate limit untuk transaksi
+
+    ## Offline-First Sync
+    API mendukung arsitektur offline-first melalui endpoint Sync Down/Up untuk sinkronisasi data antara server dan aplikasi mobile.
+  version: 1.0.0
+  contact:
+    name: WaroengKoe Support
+
+servers:
+  - url: /api
+    description: Base API URL
+
+tags:
+  - name: Autentikasi
+    description: Login, logout, dan informasi user terautentikasi
+  - name: Katalog Publik
+    description: Katalog produk publik tanpa autentikasi
+  - name: Dashboard
+    description: Statistik dan data dashboard
+  - name: Barang
+    description: CRUD produk/barang
+  - name: Kategori
+    description: CRUD kategori produk
+  - name: Satuan
+    description: Satuan unit (master)
+  - name: Transaksi
+    description: POS, checkout, riwayat, dan detail transaksi
+  - name: Sinkronisasi
+    description: Sync data untuk arsitektur offline-first
+  - name: Keuntungan
+    description: Laporan laba/rugi dan profit
+  - name: Pengguna
+    description: Manajemen user (admin only)
+
+paths:
+  # ============================================================
+  # AUTENTIKASI
+  # ============================================================
+  /login:
+    post:
+      tags: [Autentikasi]
+      summary: Login dan mendapatkan token Sanctum
+      description: |
+        Autentikasi user menggunakan email dan password.
+        Mengembalikan Sanctum token yang digunakan untuk autentikasi request selanjutnya.
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  description: Email user
+                  example: admin@waroengkoe.com
+                password:
+                  type: string
+                  description: Password user
+                  example: password123
+                device_name:
+                  type: string
+                  nullable: true
+                  maxLength: 255
+                  description: Nama device untuk identifikasi token (default "mobile")
+                  example: Samsung Galaxy A54
+      responses:
+        "200":
+          description: Login berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Login berhasil
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: "#/components/schemas/LoginUser"
+                      token:
+                        type: string
+                        description: Sanctum plain text token
+                        example: "1|abcdefghijklmnopqrstuvwxyz1234567890"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /logout:
+    post:
+      tags: [Autentikasi]
+      summary: Logout (revoke token saat ini)
+      description: Menghapus/revoke token Sanctum yang sedang digunakan untuk autentikasi request ini.
+      operationId: logout
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Logout berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Logout berhasil
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /me:
+    get:
+      tags: [Autentikasi]
+      summary: Informasi user terautentikasi
+      description: Mengembalikan data user yang sedang login beserta role dan permission.
+      operationId: me
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Berhasil mengambil data user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/AuthUser"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ============================================================
+  # KATALOG PUBLIK
+  # ============================================================
+  /catalog:
+    get:
+      tags: [Katalog Publik]
+      summary: Katalog produk publik
+      description: |
+        Menampilkan daftar produk yang tersedia untuk publik tanpa perlu login.
+        Response di-cache selama 10 menit. Mendukung filter pencarian, kategori, harga, dan stok.
+      operationId: publicCatalog
+      parameters:
+        - name: q
+          in: query
+          description: Pencarian berdasarkan nama produk atau SKU
+          schema:
+            type: string
+          example: indomie
+        - name: kategori_id
+          in: query
+          description: Filter berdasarkan ID kategori
+          schema:
+            type: integer
+            format: int64
+          example: 1
+        - name: harga_min
+          in: query
+          description: Harga minimum
+          schema:
+            type: number
+            format: float
+          example: 1000
+        - name: harga_max
+          in: query
+          description: Harga maksimum
+          schema:
+            type: number
+            format: float
+          example: 50000
+        - name: hanya_tersedia
+          in: query
+          description: Hanya tampilkan produk yang stoknya tersedia
+          schema:
+            type: boolean
+          example: true
+        - name: sort_by
+          in: query
+          description: Urutkan berdasarkan
+          schema:
+            type: string
+            enum: [terbaru, nama]
+            default: terbaru
+          example: terbaru
+        - name: per_page
+          in: query
+          description: Jumlah item per halaman (hanya 12, 24, atau 48)
+          schema:
+            type: integer
+            enum: [12, 24, 48]
+            default: 12
+          example: 12
+        - name: page
+          in: query
+          description: Nomor halaman
+          schema:
+            type: integer
+            default: 1
+          example: 1
+      responses:
+        "200":
+          description: Daftar produk publik
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PublicProduct"
+                  pagination:
+                    $ref: "#/components/schemas/StandardPagination"
+
+  # ============================================================
+  # DASHBOARD
+  # ============================================================
+  /dashboard:
+    get:
+      tags: [Dashboard]
+      summary: Statistik dashboard
+      description: |
+        Mengembalikan data statistik dashboard meliputi:
+        - Data harian (penjualan, pesanan, produk terjual, pendapatan bersih hari ini)
+        - Top 5 produk terlaris bulan ini
+        - Data umum (jumlah produk, transaksi, pengguna)
+        - Peringatan stok rendah
+        - Data grafik omset bulanan
+      operationId: dashboard
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: period
+          in: query
+          description: Periode grafik dalam bulan (default 6)
+          schema:
+            type: integer
+            default: 6
+          example: 6
+        - name: year
+          in: query
+          description: Tahun untuk data grafik
+          schema:
+            type: integer
+          example: 2025
+      responses:
+        "200":
+          description: Data dashboard berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      penjualan_hari_ini:
+                        type: number
+                        format: float
+                        description: Total penjualan hari ini
+                      pesanan_hari_ini:
+                        type: integer
+                        description: Jumlah pesanan hari ini
+                      produk_terjual_hari_ini:
+                        type: integer
+                        description: Jumlah produk terjual hari ini
+                      pendapatan_bersih_hari_ini:
+                        type: number
+                        format: float
+                        description: Pendapatan bersih (profit) hari ini
+                      top_products:
+                        type: array
+                        description: Top 5 produk terlaris bulan ini
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              format: int64
+                            nama:
+                              type: string
+                            gambar:
+                              type: string
+                              nullable: true
+                            terjual:
+                              type: integer
+                      jumlah_produk:
+                        type: integer
+                        description: Total jumlah produk
+                      jumlah_transaksi:
+                        type: integer
+                        description: Total jumlah transaksi
+                      jumlah_pengguna:
+                        type: integer
+                        description: Total jumlah pengguna
+                      low_stock_items:
+                        type: array
+                        description: Produk dengan stok rendah
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              format: int64
+                            nama:
+                              type: string
+                            stok:
+                              type: integer
+                            gambar:
+                              type: string
+                              nullable: true
+                      chart:
+                        type: object
+                        description: Data grafik omset bulanan
+                        properties:
+                          labels:
+                            type: array
+                            items:
+                              type: string
+                            example: ["Jan 2025", "Feb 2025", "Mar 2025"]
+                          data:
+                            type: array
+                            items:
+                              type: number
+                              format: float
+                            example: [1500000, 2300000, 1800000]
+                          total:
+                            type: number
+                            format: float
+                      filters:
+                        type: object
+                        properties:
+                          period:
+                            type: integer
+                          year:
+                            type: integer
+                      available_years:
+                        type: array
+                        items:
+                          type: integer
+                        example: [2025, 2024]
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ============================================================
+  # BARANG (PRODUCTS)
+  # ============================================================
+  /barang/stats:
+    get:
+      tags: [Barang]
+      summary: Statistik produk
+      description: Mengembalikan statistik realtime produk meliputi total produk, stok menipis, stok habis, total kategori, dan total nilai barang.
+      operationId: barangStats
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Statistik produk
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      total_produk:
+                        type: integer
+                        description: Total jumlah produk
+                        example: 150
+                      stok_menipis:
+                        type: integer
+                        description: Jumlah produk dengan stok menipis
+                        example: 12
+                      stok_habis:
+                        type: integer
+                        description: Jumlah produk dengan stok habis
+                        example: 5
+                      total_kategori:
+                        type: integer
+                        description: Total jumlah kategori
+                        example: 8
+                      total_nilai_barang:
+                        type: number
+                        format: float
+                        description: Total nilai barang (harga_beli x stok)
+                        example: 25000000.00
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /barang:
+    get:
+      tags: [Barang]
+      summary: Daftar produk (cursor pagination)
+      description: |
+        Mengembalikan daftar produk dengan cursor-based pagination.
+        Mendukung filter pencarian, kategori, harga, dan stok.
+        Data termasuk relasi satuans, kategori, dan promos.
+      operationId: barangIndex
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          description: Pencarian berdasarkan nama produk atau SKU
+          schema:
+            type: string
+          example: indomie
+        - name: kategori_id
+          in: query
+          description: Filter berdasarkan ID kategori
+          schema:
+            type: integer
+            format: int64
+          example: 1
+        - name: harga_min
+          in: query
+          description: Harga jual minimum (dari satuan)
+          schema:
+            type: number
+            format: float
+          example: 1000
+        - name: harga_max
+          in: query
+          description: Harga jual maksimum (dari satuan)
+          schema:
+            type: number
+            format: float
+          example: 50000
+        - name: stok
+          in: query
+          description: Filter stok
+          schema:
+            type: string
+            enum: [low, empty]
+          example: low
+        - name: sort_by
+          in: query
+          description: Field untuk sorting
+          schema:
+            type: string
+            enum: [nama_barang, harga_jual, id]
+            default: nama_barang
+          example: nama_barang
+        - name: sort_order
+          in: query
+          description: Urutan sorting
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+          example: asc
+        - name: per_page
+          in: query
+          description: Jumlah item per halaman
+          schema:
+            type: integer
+            default: 20
+          example: 20
+        - name: cursor
+          in: query
+          description: Cursor untuk pagination (dari response sebelumnya)
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Daftar produk
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Barang"
+                  pagination:
+                    $ref: "#/components/schemas/CursorPagination"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    post:
+      tags: [Barang]
+      summary: Tambah produk baru
+      description: |
+        Membuat produk baru beserta variasi satuan.
+        Mendukung upload gambar (multipart/form-data).
+      operationId: barangStore
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - nama_barang
+                - harga_beli
+                - stok
+                - satuans
+              properties:
+                sku:
+                  type: string
+                  nullable: true
+                  maxLength: 50
+                  description: SKU produk (unik)
+                  example: SKU-001
+                nama_barang:
+                  type: string
+                  maxLength: 255
+                  description: Nama produk
+                  example: Indomie Goreng
+                kategori_id:
+                  type: integer
+                  format: int64
+                  nullable: true
+                  description: ID kategori
+                  example: 1
+                harga_beli:
+                  type: number
+                  format: float
+                  minimum: 0
+                  description: Harga beli produk
+                  example: 2500
+                stok:
+                  type: integer
+                  minimum: 0
+                  description: Stok awal produk (dalam unit dasar)
+                  example: 100
+                deskripsi:
+                  type: string
+                  nullable: true
+                  description: Deskripsi produk
+                  example: Mie instan goreng
+                gambar:
+                  type: string
+                  format: binary
+                  nullable: true
+                  description: Gambar produk (max 2MB, format image)
+                satuans:
+                  type: array
+                  minItems: 1
+                  description: Daftar variasi satuan produk
+                  items:
+                    type: object
+                    required:
+                      - nama_satuan
+                      - harga_jual
+                      - konversi
+                    properties:
+                      nama_satuan:
+                        type: string
+                        maxLength: 50
+                        description: Nama satuan
+                        example: Pcs
+                      harga_jual:
+                        type: number
+                        format: float
+                        minimum: 0
+                        description: Harga jual untuk satuan ini
+                        example: 3500
+                      konversi:
+                        type: integer
+                        minimum: 1
+                        description: Faktor konversi ke unit dasar
+                        example: 1
+                      is_default:
+                        type: boolean
+                        description: Apakah satuan default
+                        example: true
+      responses:
+        "201":
+          description: Produk berhasil ditambahkan
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessMessageResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/Barang"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /barang/{barang}:
+    get:
+      tags: [Barang]
+      summary: Detail produk
+      description: Mengembalikan detail produk lengkap termasuk deskripsi, jumlah terjual, dan timestamps.
+      operationId: barangShow
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BarangId"
+      responses:
+        "200":
+          description: Detail produk
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/BarangDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      tags: [Barang]
+      summary: Update produk
+      description: |
+        Memperbarui data produk beserta variasi satuannya.
+        Mendukung upload gambar baru (gambar lama akan dihapus).
+        Untuk satuans: jika ada `id` maka update, jika tidak ada `id` maka create baru, dan satuan yang tidak disertakan akan dihapus.
+      operationId: barangUpdate
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BarangId"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                sku:
+                  type: string
+                  nullable: true
+                  maxLength: 50
+                  description: SKU produk (unik, kecuali produk ini sendiri)
+                  example: SKU-001
+                nama_barang:
+                  type: string
+                  maxLength: 255
+                  description: Nama produk
+                  example: Indomie Goreng Spesial
+                kategori_id:
+                  type: integer
+                  format: int64
+                  nullable: true
+                  description: ID kategori
+                harga_beli:
+                  type: number
+                  format: float
+                  minimum: 0
+                  description: Harga beli produk
+                stok:
+                  type: integer
+                  minimum: 0
+                  description: Stok produk
+                deskripsi:
+                  type: string
+                  nullable: true
+                  description: Deskripsi produk
+                gambar:
+                  type: string
+                  format: binary
+                  nullable: true
+                  description: Gambar produk baru (max 2MB)
+                satuans:
+                  type: array
+                  minItems: 1
+                  description: Daftar variasi satuan (update/create/delete)
+                  items:
+                    type: object
+                    required:
+                      - nama_satuan
+                      - harga_jual
+                      - konversi
+                    properties:
+                      id:
+                        type: integer
+                        format: int64
+                        nullable: true
+                        description: ID satuan barang (jika ada, berarti update)
+                      nama_satuan:
+                        type: string
+                        maxLength: 50
+                      harga_jual:
+                        type: number
+                        format: float
+                        minimum: 0
+                      konversi:
+                        type: integer
+                        minimum: 1
+                      is_default:
+                        type: boolean
+      responses:
+        "200":
+          description: Produk berhasil diperbarui
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessMessageResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/Barang"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+    delete:
+      tags: [Barang]
+      summary: Hapus produk (soft delete)
+      description: Menghapus produk secara soft delete. SKU akan di-append dengan `_deleted_{timestamp}` untuk membebaskan unique constraint.
+      operationId: barangDestroy
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BarangId"
+      responses:
+        "200":
+          description: Produk berhasil dihapus
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ============================================================
+  # KATEGORI (CATEGORIES)
+  # ============================================================
+  /kategori:
+    get:
+      tags: [Kategori]
+      summary: Daftar kategori
+      description: |
+        Mengembalikan daftar kategori. Jika parameter `per_page` disertakan, akan menggunakan pagination.
+        Jika tidak, akan mengembalikan semua kategori beserta statistik.
+      operationId: kategoriIndex
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          description: Pencarian berdasarkan nama atau deskripsi kategori
+          schema:
+            type: string
+        - name: sort_by
+          in: query
+          description: Field untuk sorting
+          schema:
+            type: string
+            default: nama
+          example: nama
+        - name: sort_order
+          in: query
+          description: Urutan sorting
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+        - name: per_page
+          in: query
+          description: Jumlah item per halaman (jika diisi, menggunakan pagination)
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Daftar kategori
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - description: Dengan pagination (jika per_page diisi)
+                    type: object
+                    properties:
+                      success:
+                        type: boolean
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Kategori"
+                      pagination:
+                        $ref: "#/components/schemas/StandardPagination"
+                  - description: Tanpa pagination (semua data + statistik)
+                    type: object
+                    properties:
+                      success:
+                        type: boolean
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Kategori"
+                      stats:
+                        type: object
+                        properties:
+                          total_categories:
+                            type: integer
+                            example: 8
+                          total_products:
+                            type: integer
+                            example: 150
+                          categories_with_products:
+                            type: integer
+                            example: 6
+                          uncategorized_products:
+                            type: integer
+                            example: 5
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    post:
+      tags: [Kategori]
+      summary: Tambah kategori baru
+      description: Membuat kategori baru.
+      operationId: kategoriStore
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - nama
+              properties:
+                nama:
+                  type: string
+                  maxLength: 255
+                  description: Nama kategori (unik)
+                  example: Makanan Ringan
+                deskripsi:
+                  type: string
+                  nullable: true
+                  maxLength: 500
+                  description: Deskripsi kategori
+                  example: Aneka snack dan cemilan
+                warna:
+                  type: string
+                  nullable: true
+                  maxLength: 7
+                  description: Warna hex untuk kategori
+                  example: "#FF5733"
+      responses:
+        "201":
+          description: Kategori berhasil ditambahkan
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessMessageResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/Kategori"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /kategori/{kategori}:
+    get:
+      tags: [Kategori]
+      summary: Detail kategori
+      description: Mengembalikan detail kategori beserta jumlah produk.
+      operationId: kategoriShow
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/KategoriId"
+      responses:
+        "200":
+          description: Detail kategori
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        format: int64
+                      nama:
+                        type: string
+                      deskripsi:
+                        type: string
+                        nullable: true
+                      warna:
+                        type: string
+                        nullable: true
+                      product_count:
+                        type: integer
+                        description: Jumlah produk dalam kategori ini
+                      created_at:
+                        type: string
+                        format: date-time
+                      updated_at:
+                        type: string
+                        format: date-time
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      tags: [Kategori]
+      summary: Update kategori
+      description: Memperbarui data kategori. Jika nama berubah, akan otomatis menyinkronkan `jenis_kategori` pada produk terkait.
+      operationId: kategoriUpdate
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/KategoriId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - nama
+              properties:
+                nama:
+                  type: string
+                  maxLength: 255
+                  description: Nama kategori (unik, kecuali kategori ini sendiri)
+                  example: Makanan Ringan Update
+                deskripsi:
+                  type: string
+                  nullable: true
+                  maxLength: 500
+                warna:
+                  type: string
+                  nullable: true
+                  maxLength: 7
+                  example: "#00FF00"
+      responses:
+        "200":
+          description: Kategori berhasil diperbarui
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessMessageResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/Kategori"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+    delete:
+      tags: [Kategori]
+      summary: Hapus kategori
+      description: Menghapus kategori. Gagal jika kategori masih memiliki produk.
+      operationId: kategoriDestroy
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/KategoriId"
+      responses:
+        "200":
+          description: Kategori berhasil dihapus
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: Kategori masih memiliki produk
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ============================================================
+  # SATUAN (UNITS)
+  # ============================================================
+  /satuan:
+    get:
+      tags: [Satuan]
+      summary: Daftar satuan
+      description: Mengembalikan daftar satuan unit master.
+      operationId: satuanIndex
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          description: Pencarian berdasarkan nama satuan
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Daftar satuan
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Satuan"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    post:
+      tags: [Satuan]
+      summary: Tambah satuan baru
+      description: Membuat satuan unit master baru.
+      operationId: satuanStore
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - nama_satuan
+              properties:
+                nama_satuan:
+                  type: string
+                  maxLength: 50
+                  description: Nama satuan (unik)
+                  example: Renceng
+                keterangan:
+                  type: string
+                  nullable: true
+                  maxLength: 255
+                  description: Keterangan satuan
+                  example: 1 renceng = 10 pcs
+      responses:
+        "201":
+          description: Satuan berhasil ditambahkan
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Satuan created successfully
+                  data:
+                    $ref: "#/components/schemas/Satuan"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  # ============================================================
+  # TRANSAKSI (TRANSACTIONS)
+  # ============================================================
+  /transaksi/pos:
+    get:
+      tags: [Transaksi]
+      summary: Data untuk POS (Point of Sale)
+      description: |
+        Mengembalikan data yang dibutuhkan untuk halaman kasir/POS:
+        daftar kategori dan daftar produk beserta variasi satuan dan promo aktif.
+      operationId: transaksiPos
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: kategori_id
+          in: query
+          description: Filter produk berdasarkan ID kategori
+          schema:
+            type: integer
+            format: int64
+        - name: q
+          in: query
+          description: Pencarian berdasarkan nama produk atau SKU
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Data POS berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      kategoris:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              format: int64
+                            nama:
+                              type: string
+                            warna:
+                              type: string
+                              nullable: true
+                      products:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/POSProduct"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /transaksi:
+    post:
+      tags: [Transaksi]
+      summary: Buat transaksi baru (checkout)
+      description: |
+        Membuat transaksi penjualan baru. Proses meliputi:
+        1. Validasi item dan stok (dengan row-level locking `lockForUpdate`)
+        2. Kalkulasi total berdasarkan konversi satuan
+        3. Generate nomor invoice (`INV-{timestamp}`)
+        4. Buat detail transaksi
+        5. Kurangi stok dan increment jumlah terjual
+
+        Mendukung header `Idempotency-Key` untuk mencegah duplikasi.
+      operationId: transaksiStore
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - items
+                - total_bayar
+                - metode_pembayaran
+              properties:
+                items:
+                  type: array
+                  minItems: 1
+                  description: Daftar item yang dibeli
+                  items:
+                    type: object
+                    required:
+                      - barang_id
+                      - satuan_id
+                      - jumlah
+                      - harga_satuan
+                    properties:
+                      barang_id:
+                        type: integer
+                        format: int64
+                        description: ID produk
+                        example: 1
+                      satuan_id:
+                        type: integer
+                        format: int64
+                        description: ID satuan barang (satuan_barangs)
+                        example: 1
+                      jumlah:
+                        type: integer
+                        minimum: 1
+                        description: Jumlah yang dibeli
+                        example: 2
+                      harga_satuan:
+                        type: number
+                        format: float
+                        minimum: 0
+                        description: Harga per unit satuan
+                        example: 3500
+                      diskon:
+                        type: number
+                        format: float
+                        nullable: true
+                        minimum: 0
+                        description: Diskon per item
+                        default: 0
+                        example: 0
+                total_bayar:
+                  type: number
+                  format: float
+                  minimum: 0
+                  description: Total pembayaran dari pelanggan
+                  example: 10000
+                metode_pembayaran:
+                  type: string
+                  enum: [tunai, transfer, qris]
+                  description: Metode pembayaran
+                  example: tunai
+                diskon_global:
+                  type: number
+                  format: float
+                  nullable: true
+                  minimum: 0
+                  description: Diskon global untuk seluruh transaksi
+                  default: 0
+                  example: 0
+                catatan:
+                  type: string
+                  nullable: true
+                  maxLength: 500
+                  description: Catatan transaksi
+      responses:
+        "201":
+          description: Transaksi berhasil
+          headers:
+            Idempotency-Replayed:
+              description: "Bernilai 'true' jika response ini adalah replay dari request sebelumnya"
+              schema:
+                type: string
+                enum: ["true"]
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Transaksi berhasil
+                  data:
+                    $ref: "#/components/schemas/TransaksiResult"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          description: Validasi gagal atau stok tidak cukup
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /transaksi/riwayat:
+    get:
+      tags: [Transaksi]
+      summary: Riwayat transaksi
+      description: Mengembalikan daftar transaksi dengan pagination. Mendukung filter tanggal, status, dan pencarian invoice.
+      operationId: transaksiRiwayat
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tanggal_mulai
+          in: query
+          description: Tanggal mulai (format YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+          example: "2025-01-01"
+        - name: tanggal_akhir
+          in: query
+          description: Tanggal akhir (format YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+          example: "2025-12-31"
+        - name: status
+          in: query
+          description: Filter berdasarkan status transaksi
+          schema:
+            type: string
+            enum: [Selesai, Pending, Batal]
+          example: Selesai
+        - name: q
+          in: query
+          description: Pencarian berdasarkan nomor invoice
+          schema:
+            type: string
+        - name: per_page
+          in: query
+          description: Jumlah item per halaman
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Riwayat transaksi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/TransaksiList"
+                  pagination:
+                    $ref: "#/components/schemas/StandardPagination"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /transaksi/{transaksi}:
+    get:
+      tags: [Transaksi]
+      summary: Detail transaksi
+      description: Mengembalikan detail transaksi lengkap beserta item-item yang dibeli.
+      operationId: transaksiShow
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TransaksiId"
+      responses:
+        "200":
+          description: Detail transaksi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/TransaksiDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /transaksi/{transaksi}/complete:
+    put:
+      tags: [Transaksi]
+      summary: Selesaikan transaksi pending
+      description: |
+        Menyelesaikan transaksi yang berstatus Pending menjadi Selesai.
+        Menggunakan `lockForUpdate` untuk mencegah race condition.
+        Mendukung header `Idempotency-Key`.
+      operationId: transaksiComplete
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TransaksiId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - total_bayar
+                - metode_pembayaran
+              properties:
+                total_bayar:
+                  type: number
+                  format: float
+                  minimum: 0
+                  description: Total pembayaran
+                  example: 50000
+                metode_pembayaran:
+                  type: string
+                  description: Metode pembayaran
+                  example: Tunai
+      responses:
+        "200":
+          description: Transaksi berhasil diselesaikan
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Transaksi berhasil diselesaikan
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        format: int64
+                      no_invoice:
+                        type: string
+                      total_bayar:
+                        type: number
+                        format: float
+                      kembalian:
+                        type: number
+                        format: float
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: Transaksi sudah selesai
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Gagal menyelesaikan transaksi
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ============================================================
+  # SINKRONISASI (SYNC)
+  # ============================================================
+  /sync/down:
+    get:
+      tags: [Sinkronisasi]
+      summary: Download data (Sync Down)
+      description: |
+        Download data yang berubah sejak `last_synced_at`.
+        Digunakan oleh aplikasi mobile untuk sinkronisasi data offline-first.
+        Termasuk soft-deleted products untuk sinkronisasi penghapusan.
+      operationId: syncDown
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: last_synced_at
+          in: query
+          description: Timestamp sinkronisasi terakhir (ISO 8601). Kosongkan untuk download semua data.
+          schema:
+            type: string
+            format: date-time
+          example: "2025-01-15T10:30:00+07:00"
+      responses:
+        "200":
+          description: Data berhasil disinkronkan
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: Timestamp server saat response
+                  data:
+                    type: object
+                    properties:
+                      categories:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/SyncCategory"
+                      products:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/SyncProduct"
+                      server_time:
+                        type: string
+                        format: date-time
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /sync/up:
+    post:
+      tags: [Sinkronisasi]
+      summary: Upload transaksi offline (Sync Up)
+      description: |
+        Upload transaksi yang dibuat secara offline dari aplikasi mobile ke server.
+        Bersifat idempotent - jika invoice sudah ada, akan di-skip tapi tetap dianggap sukses.
+      operationId: syncUp
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - transactions
+              properties:
+                transactions:
+                  type: array
+                  description: Daftar transaksi offline
+                  items:
+                    $ref: "#/components/schemas/SyncUpTransaction"
+      responses:
+        "200":
+          description: Sync up selesai
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  processed:
+                    type: integer
+                    description: Jumlah transaksi yang berhasil diproses
+                    example: 3
+                  failed_count:
+                    type: integer
+                    description: Jumlah transaksi yang gagal
+                    example: 1
+                  results:
+                    type: object
+                    properties:
+                      success:
+                        type: array
+                        description: Daftar invoice yang sukses
+                        items:
+                          type: string
+                        example: ["INV-20250115103000001", "INV-20250115103000002"]
+                      failed:
+                        type: array
+                        description: Daftar invoice yang gagal beserta error
+                        items:
+                          type: object
+                          properties:
+                            no_invoice:
+                              type: string
+                            error:
+                              type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  # ============================================================
+  # KEUNTUNGAN (PROFIT)
+  # ============================================================
+  /keuntungan:
+    get:
+      tags: [Keuntungan]
+      summary: Laporan keuntungan/profit
+      description: |
+        Mengembalikan laporan laba/rugi dalam rentang tanggal tertentu.
+        Termasuk summary (revenue, cost, profit, diskon, margin), detail per produk, dan data harian.
+        Response di-cache untuk performa.
+      operationId: keuntunganIndex
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: start_date
+          in: query
+          description: Tanggal mulai (default awal bulan ini)
+          schema:
+            type: string
+            format: date
+          example: "2025-01-01"
+        - name: end_date
+          in: query
+          description: Tanggal akhir (default hari ini)
+          schema:
+            type: string
+            format: date
+          example: "2025-01-31"
+        - name: barang_id
+          in: query
+          description: Filter berdasarkan ID produk tertentu
+          schema:
+            type: integer
+            format: int64
+        - name: per_page
+          in: query
+          description: Jumlah produk per halaman
+          schema:
+            type: integer
+            default: 20
+        - name: page
+          in: query
+          description: Nomor halaman
+          schema:
+            type: integer
+            default: 1
+      responses:
+        "200":
+          description: Laporan keuntungan
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      summary:
+                        $ref: "#/components/schemas/ProfitSummary"
+                      products:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/ProductProfit"
+                      daily:
+                        type: array
+                        description: Data keuntungan harian
+                        items:
+                          type: object
+                          properties:
+                            tanggal:
+                              type: string
+                              format: date
+                            revenue:
+                              type: number
+                              format: float
+                            jumlah_transaksi:
+                              type: integer
+                      filters:
+                        type: object
+                        properties:
+                          start_date:
+                            type: string
+                            format: date
+                          end_date:
+                            type: string
+                            format: date
+                          barang_id:
+                            type: string
+                            nullable: true
+                      pagination:
+                        type: object
+                        properties:
+                          current_page:
+                            type: integer
+                          per_page:
+                            type: integer
+                          total:
+                            type: integer
+                          last_page:
+                            type: integer
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ============================================================
+  # PENGGUNA (USERS) - ADMIN ONLY
+  # ============================================================
+  /pengguna:
+    get:
+      tags: [Pengguna]
+      summary: Daftar pengguna (Admin only)
+      description: Mengembalikan daftar pengguna dengan pagination. Memerlukan role admin.
+      operationId: penggunaIndex
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          description: Pencarian berdasarkan nama atau email
+          schema:
+            type: string
+        - name: role
+          in: query
+          description: Filter berdasarkan role
+          schema:
+            type: string
+            enum: [admin, kasir]
+        - name: per_page
+          in: query
+          description: Jumlah item per halaman
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Daftar pengguna
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/User"
+                  pagination:
+                    $ref: "#/components/schemas/StandardPagination"
+                  stats:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        description: Total pengguna
+                      admin:
+                        type: integer
+                        description: Total admin
+                      kasir:
+                        type: integer
+                        description: Total kasir
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+    post:
+      tags: [Pengguna]
+      summary: Tambah pengguna baru (Admin only)
+      description: Membuat pengguna baru. Memerlukan role admin.
+      operationId: penggunaStore
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - email
+                - password
+                - role
+              properties:
+                name:
+                  type: string
+                  maxLength: 255
+                  description: Nama pengguna
+                  example: Budi Santoso
+                email:
+                  type: string
+                  format: email
+                  description: Email pengguna (unik)
+                  example: budi@waroengkoe.com
+                password:
+                  type: string
+                  minLength: 6
+                  description: Password pengguna
+                  example: password123
+                role:
+                  type: string
+                  enum: [admin, kasir]
+                  description: Role pengguna
+                  example: kasir
+                can_view_activity_log:
+                  type: boolean
+                  description: Izin melihat log aktivitas
+                  default: false
+                can_manage_category:
+                  type: boolean
+                  description: Izin mengelola kategori
+                  default: false
+      responses:
+        "201":
+          description: Pengguna berhasil ditambahkan
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessMessageResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /pengguna/{pengguna}:
+    get:
+      tags: [Pengguna]
+      summary: Detail pengguna (Admin only)
+      description: Mengembalikan detail pengguna lengkap termasuk status online dan timestamps.
+      operationId: penggunaShow
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PenggunaId"
+      responses:
+        "200":
+          description: Detail pengguna
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/UserDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      tags: [Pengguna]
+      summary: Update pengguna (Admin only)
+      description: |
+        Memperbarui data pengguna.
+        Admin default (ID=1) hanya bisa diubah oleh dirinya sendiri dan role-nya tidak bisa diubah.
+      operationId: penggunaUpdate
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PenggunaId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  maxLength: 255
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  nullable: true
+                  minLength: 6
+                  description: Kosongkan jika tidak ingin mengubah password
+                role:
+                  type: string
+                  enum: [admin, kasir]
+                can_view_activity_log:
+                  type: boolean
+                can_manage_category:
+                  type: boolean
+      responses:
+        "200":
+          description: Pengguna berhasil diperbarui
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessMessageResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+    delete:
+      tags: [Pengguna]
+      summary: Hapus pengguna (Admin only, soft delete)
+      description: |
+        Menghapus pengguna secara soft delete.
+        Tidak dapat menghapus diri sendiri atau admin default.
+      operationId: penggunaDestroy
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PenggunaId"
+      responses:
+        "200":
+          description: Pengguna berhasil dihapus
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Tidak dapat menghapus (diri sendiri atau admin default)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+# ================================================================
+# COMPONENTS
+# ================================================================
+components:
+  # ============================================================
+  # SECURITY SCHEMES
+  # ============================================================
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Sanctum Token
+      description: |
+        Laravel Sanctum token. Dapatkan dari endpoint `POST /api/login`.
+        Format header: `Authorization: Bearer {token}`
+
+  # ============================================================
+  # PARAMETERS
+  # ============================================================
+  parameters:
+    BarangId:
+      name: barang
+      in: path
+      required: true
+      description: ID produk
+      schema:
+        type: integer
+        format: int64
+      example: 1
+
+    KategoriId:
+      name: kategori
+      in: path
+      required: true
+      description: ID kategori
+      schema:
+        type: integer
+        format: int64
+      example: 1
+
+    TransaksiId:
+      name: transaksi
+      in: path
+      required: true
+      description: ID transaksi
+      schema:
+        type: integer
+        format: int64
+      example: 1
+
+    PenggunaId:
+      name: pengguna
+      in: path
+      required: true
+      description: ID pengguna
+      schema:
+        type: integer
+        format: int64
+      example: 1
+
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      description: |
+        Kunci idempotensi (Stripe-style). Jika header ini disertakan, response akan di-cache selama 24 jam.
+        Request duplikat dengan key yang sama akan mengembalikan response yang sama tanpa memproses ulang.
+        Response replay akan menyertakan header `Idempotency-Replayed: true`.
+      required: false
+      schema:
+        type: string
+        format: uuid
+      example: "550e8400-e29b-41d4-a716-446655440000"
+
+  # ============================================================
+  # RESPONSES
+  # ============================================================
+  responses:
+    Unauthorized:
+      description: Tidak terautentikasi (token tidak valid atau kadaluarsa)
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                example: Unauthenticated.
+
+    Forbidden:
+      description: Tidak memiliki izin (role tidak sesuai)
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: Anda tidak memiliki akses ke fitur ini.
+
+    NotFound:
+      description: Resource tidak ditemukan
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                example: Not Found
+
+    ValidationError:
+      description: Validasi gagal
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                example: The given data was invalid.
+              errors:
+                type: object
+                additionalProperties:
+                  type: array
+                  items:
+                    type: string
+                example:
+                  email: ["Email atau password salah."]
+
+  # ============================================================
+  # SCHEMAS
+  # ============================================================
+  schemas:
+    # ----- Reusable Response Schemas -----
+    SuccessMessageResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+
+    StandardPagination:
+      type: object
+      properties:
+        current_page:
+          type: integer
+          example: 1
+        last_page:
+          type: integer
+          example: 10
+        per_page:
+          type: integer
+          example: 20
+        total:
+          type: integer
+          example: 200
+
+    CursorPagination:
+      type: object
+      properties:
+        next_cursor:
+          type: string
+          nullable: true
+          description: Cursor untuk halaman berikutnya
+        prev_cursor:
+          type: string
+          nullable: true
+          description: Cursor untuk halaman sebelumnya
+        per_page:
+          type: integer
+          example: 20
+        has_more:
+          type: boolean
+          description: Apakah masih ada halaman berikutnya
+
+    # ----- Auth Schemas -----
+    LoginUser:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        name:
+          type: string
+          example: Admin
+        email:
+          type: string
+          format: email
+          example: admin@waroengkoe.com
+        role:
+          type: string
+          enum: [admin, kasir]
+          example: admin
+        avatar:
+          type: string
+          nullable: true
+        can_view_activity_log:
+          type: boolean
+        can_manage_category:
+          type: boolean
+
+    AuthUser:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        name:
+          type: string
+          example: Admin
+        email:
+          type: string
+          format: email
+          example: admin@waroengkoe.com
+        role:
+          type: string
+          enum: [admin, kasir]
+          example: admin
+        avatar:
+          type: string
+          nullable: true
+        can_view_activity_log:
+          type: boolean
+        can_manage_category:
+          type: boolean
+        is_admin:
+          type: boolean
+          example: true
+        is_kasir:
+          type: boolean
+          example: false
+
+    # ----- Barang (Product) Schemas -----
+    Barang:
+      type: object
+      description: Data produk standar
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        sku:
+          type: string
+          nullable: true
+          example: SKU-001
+        nama:
+          type: string
+          example: Indomie Goreng
+        kategori:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: integer
+              format: int64
+              example: 1
+            nama:
+              type: string
+              example: Mie Instan
+            warna:
+              type: string
+              nullable: true
+              example: "#FF5733"
+        harga_beli:
+          type: number
+          format: float
+          example: 2500.00
+        harga_jual:
+          type: number
+          format: float
+          description: Harga jual dari satuan default
+          example: 3500.00
+        harga_min:
+          type: number
+          format: float
+          description: Harga jual terendah dari semua variasi
+          example: 3000.00
+        harga_max:
+          type: number
+          format: float
+          description: Harga jual tertinggi dari semua variasi
+          example: 35000.00
+        stok:
+          type: integer
+          description: Stok dalam unit dasar
+          example: 100
+        satuan_dasar:
+          type: string
+          nullable: true
+          description: Nama satuan default
+          example: Pcs
+        gambar:
+          type: string
+          nullable: true
+          description: URL gambar produk
+          example: https://example.com/storage/products/indomie.jpg
+        status:
+          type: string
+          enum: [aktif, tidak_aktif]
+          example: aktif
+        satuans:
+          type: array
+          description: Daftar variasi satuan produk
+          items:
+            $ref: "#/components/schemas/SatuanBarang"
+        promos:
+          type: array
+          description: Daftar promo aktif
+          items:
+            $ref: "#/components/schemas/Promo"
+
+    BarangDetail:
+      allOf:
+        - $ref: "#/components/schemas/Barang"
+        - type: object
+          description: Field tambahan untuk detail view
+          properties:
+            deskripsi:
+              type: string
+              nullable: true
+              example: Mie instan goreng favorit
+            terjual:
+              type: integer
+              description: Total unit terjual
+              example: 250
+            created_at:
+              type: string
+              format: date-time
+              example: "2025-01-01 10:00:00"
+            updated_at:
+              type: string
+              format: date-time
+              example: "2025-01-15 14:30:00"
+
+    SatuanBarang:
+      type: object
+      description: Variasi satuan produk
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        nama:
+          type: string
+          description: Nama satuan
+          example: Pcs
+        harga_jual:
+          type: number
+          format: float
+          description: Harga jual untuk satuan ini
+          example: 3500.00
+        konversi:
+          type: integer
+          description: Faktor konversi ke unit dasar
+          example: 1
+        is_default:
+          type: boolean
+          description: Apakah satuan default
+
+    Promo:
+      type: object
+      description: Promo aktif pada produk
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        nama:
+          type: string
+          nullable: true
+        tipe:
+          type: string
+          nullable: true
+        nilai:
+          type: number
+          format: float
+          nullable: true
+        mulai:
+          type: string
+          format: date
+          nullable: true
+          example: "2025-01-01"
+        berakhir:
+          type: string
+          format: date
+          nullable: true
+          example: "2025-12-31"
+
+    # ----- Kategori Schema -----
+    Kategori:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        nama:
+          type: string
+          example: Mie Instan
+        deskripsi:
+          type: string
+          nullable: true
+          example: Aneka mie instan
+        warna:
+          type: string
+          nullable: true
+          example: "#FF5733"
+        product_count:
+          type: integer
+          description: Jumlah produk dalam kategori
+          example: 25
+
+    # ----- Satuan Schema -----
+    Satuan:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        nama_satuan:
+          type: string
+          example: Pcs
+        is_dasar:
+          type: boolean
+          example: true
+        batas_stok_rendah:
+          type: integer
+          nullable: true
+          example: 10
+        keterangan:
+          type: string
+          nullable: true
+          example: Satuan pieces
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    # ----- POS Product Schema -----
+    POSProduct:
+      type: object
+      description: Produk yang diformat untuk POS
+      properties:
+        id:
+          type: integer
+          format: int64
+        sku:
+          type: string
+          nullable: true
+        nama:
+          type: string
+        kategori:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: integer
+              format: int64
+            nama:
+              type: string
+            warna:
+              type: string
+              nullable: true
+        harga_beli:
+          type: number
+          format: float
+        stok:
+          type: integer
+        gambar:
+          type: string
+          nullable: true
+        satuans:
+          type: array
+          items:
+            $ref: "#/components/schemas/SatuanBarang"
+        promos:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+                format: int64
+              nama:
+                type: string
+                nullable: true
+              tipe:
+                type: string
+                nullable: true
+              nilai:
+                type: number
+                format: float
+                nullable: true
+              satuan_id:
+                type: integer
+                format: int64
+                nullable: true
+
+    # ----- Transaksi Schemas -----
+    TransaksiResult:
+      type: object
+      description: Hasil transaksi yang baru dibuat
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        no_invoice:
+          type: string
+          description: Nomor invoice (format INV-{timestamp})
+          example: INV-20250115103000001
+        total_harga:
+          type: number
+          format: float
+          description: Total harga setelah diskon
+          example: 7000.00
+        total_bayar:
+          type: number
+          format: float
+          description: Total pembayaran dari pelanggan
+          example: 10000.00
+        kembalian:
+          type: number
+          format: float
+          description: Kembalian
+          example: 3000.00
+        metode_pembayaran:
+          type: string
+          enum: [Tunai, Transfer, Kartu Debit, "E-Wallet", QRIS, Pending]
+          example: Tunai
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-01-15 10:30:00"
+
+    TransaksiList:
+      type: object
+      description: Item transaksi dalam riwayat
+      properties:
+        id:
+          type: integer
+          format: int64
+        no_invoice:
+          type: string
+          example: INV-20250115103000001
+        kasir:
+          type: string
+          description: Nama kasir
+          example: Admin
+        total_harga:
+          type: number
+          format: float
+          example: 7000.00
+        total_bayar:
+          type: number
+          format: float
+          example: 10000.00
+        kembalian:
+          type: number
+          format: float
+          example: 3000.00
+        metode_pembayaran:
+          type: string
+          enum: [Tunai, Transfer, Kartu Debit, "E-Wallet", QRIS, Pending]
+          example: Tunai
+        status:
+          type: string
+          enum: [Selesai, Pending, Batal]
+          example: Selesai
+        jumlah_item:
+          type: integer
+          description: Jumlah item dalam transaksi
+          example: 2
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-01-15 10:30:00"
+
+    TransaksiDetail:
+      type: object
+      description: Detail transaksi lengkap
+      properties:
+        id:
+          type: integer
+          format: int64
+        no_invoice:
+          type: string
+          example: INV-20250115103000001
+        kasir:
+          type: string
+          example: Admin
+        total_harga:
+          type: number
+          format: float
+          example: 7000.00
+        total_bayar:
+          type: number
+          format: float
+          example: 10000.00
+        kembalian:
+          type: number
+          format: float
+          example: 3000.00
+        diskon_global:
+          type: number
+          format: float
+          example: 0.00
+        metode_pembayaran:
+          type: string
+          enum: [Tunai, Transfer, Kartu Debit, "E-Wallet", QRIS, Pending]
+          example: Tunai
+        status:
+          type: string
+          enum: [Selesai, Pending, Batal]
+          example: Selesai
+        catatan:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-01-15 10:30:00"
+        items:
+          type: array
+          description: Daftar item dalam transaksi
+          items:
+            $ref: "#/components/schemas/TransaksiItem"
+
+    TransaksiItem:
+      type: object
+      description: Item dalam detail transaksi
+      properties:
+        id:
+          type: integer
+          format: int64
+        barang_id:
+          type: integer
+          format: int64
+        nama_barang:
+          type: string
+          example: Indomie Goreng
+        gambar:
+          type: string
+          nullable: true
+          description: URL gambar produk
+        nama_satuan:
+          type: string
+          example: Pcs
+        jumlah:
+          type: integer
+          description: Jumlah terjual
+          example: 2
+        harga_satuan:
+          type: number
+          format: float
+          description: Harga per satuan
+          example: 3500.00
+        diskon:
+          type: number
+          format: float
+          example: 0.00
+        subtotal:
+          type: number
+          format: float
+          example: 7000.00
+
+    # ----- Sync Schemas -----
+    SyncCategory:
+      type: object
+      description: Kategori dalam sync response
+      properties:
+        id:
+          type: integer
+          format: int64
+        nama:
+          type: string
+        warna:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    SyncProduct:
+      type: object
+      description: Produk dalam sync response (termasuk soft deleted)
+      properties:
+        id:
+          type: integer
+          format: int64
+        sku:
+          type: string
+          nullable: true
+        nama_barang:
+          type: string
+        kategori_id:
+          type: integer
+          format: int64
+          nullable: true
+        stok:
+          type: integer
+        harga_beli:
+          type: number
+          format: float
+        gambar:
+          type: string
+          nullable: true
+        terjual:
+          type: integer
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Jika tidak null, berarti produk sudah dihapus
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        satuans:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+                format: int64
+              nama_satuan:
+                type: string
+              konversi:
+                type: integer
+              harga_jual:
+                type: number
+                format: float
+              is_default:
+                type: boolean
+              qty_gratis:
+                type: integer
+        promos:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+                format: int64
+              nama:
+                type: string
+                nullable: true
+              tipe_diskon:
+                type: string
+                nullable: true
+              nilai_diskon:
+                type: number
+                format: float
+                nullable: true
+              mulai:
+                type: string
+                format: date
+                nullable: true
+              berakhir:
+                type: string
+                format: date
+                nullable: true
+              satuan_barang_id:
+                type: integer
+                format: int64
+                nullable: true
+
+    SyncUpTransaction:
+      type: object
+      description: Transaksi offline yang di-upload ke server
+      required:
+        - no_invoice
+        - items
+      properties:
+        no_invoice:
+          type: string
+          description: Nomor invoice (unik)
+          example: INV-20250115103000001
+        customer_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: ID customer (opsional)
+        total_harga:
+          type: number
+          format: float
+          description: Total harga
+          example: 7000
+        total_bayar:
+          type: number
+          format: float
+          description: Total pembayaran
+          example: 10000
+        kembalian:
+          type: number
+          format: float
+          description: Kembalian
+          example: 3000
+        diskon_global:
+          type: number
+          format: float
+          nullable: true
+          default: 0
+        metode_pembayaran:
+          type: string
+          default: Tunai
+          example: Tunai
+        catatan:
+          type: string
+          nullable: true
+          default: Sync from Mobile
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp transaksi dibuat di device offline
+        items:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required:
+              - barang_id
+              - jumlah
+              - harga
+              - subtotal
+            properties:
+              barang_id:
+                type: integer
+                format: int64
+                description: ID produk
+              satuan_id:
+                type: integer
+                format: int64
+                nullable: true
+                description: ID satuan barang (opsional, fallback ke default)
+              jumlah:
+                type: integer
+                description: Jumlah dibeli
+              harga:
+                type: number
+                format: float
+                description: Harga per unit
+              diskon:
+                type: number
+                format: float
+                nullable: true
+                default: 0
+              subtotal:
+                type: number
+                format: float
+                description: Subtotal (harga x jumlah - diskon)
+
+    # ----- Profit Schemas -----
+    ProfitSummary:
+      type: object
+      description: Ringkasan laba/rugi
+      properties:
+        total_revenue:
+          type: number
+          format: float
+          description: Total pendapatan
+          example: 5000000.00
+        total_cost:
+          type: number
+          format: float
+          description: Total modal/biaya
+          example: 3000000.00
+        total_profit:
+          type: number
+          format: float
+          description: Total keuntungan bersih
+          example: 1800000.00
+        total_diskon:
+          type: number
+          format: float
+          description: Total diskon yang diberikan
+          example: 200000.00
+        total_qty:
+          type: integer
+          description: Total produk terjual
+          example: 500
+        margin_percentage:
+          type: number
+          format: float
+          description: Persentase margin keuntungan
+          example: 36.00
+
+    ProductProfit:
+      type: object
+      description: Detail profit per produk
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: ID produk
+        nama:
+          type: string
+          description: Nama produk
+          example: Indomie Goreng
+        gambar:
+          type: string
+          nullable: true
+          description: URL gambar produk
+        qty:
+          type: integer
+          description: Total unit terjual
+          example: 100
+        revenue:
+          type: number
+          format: float
+          description: Pendapatan dari produk ini
+          example: 350000.00
+        cost:
+          type: number
+          format: float
+          description: Modal/biaya produk ini
+          example: 250000.00
+        profit:
+          type: number
+          format: float
+          description: Keuntungan bersih produk ini
+          example: 95000.00
+        diskon:
+          type: number
+          format: float
+          description: Total diskon untuk produk ini
+          example: 5000.00
+
+    # ----- Public Product Schema -----
+    PublicProduct:
+      type: object
+      description: Produk dalam katalog publik
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        sku:
+          type: string
+          nullable: true
+          example: SKU-001
+        nama:
+          type: string
+          example: Indomie Goreng
+        deskripsi:
+          type: string
+          nullable: true
+          example: Mie instan goreng favorit
+        gambar:
+          type: object
+          properties:
+            url:
+              type: string
+              nullable: true
+              description: URL lengkap gambar
+            path:
+              type: string
+              nullable: true
+              description: Path gambar di storage
+            has_gambar:
+              type: boolean
+              example: true
+        kategori:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: integer
+              format: int64
+            nama:
+              type: string
+            warna:
+              type: string
+              nullable: true
+        stok:
+          type: object
+          properties:
+            jumlah:
+              type: integer
+              example: 100
+            status:
+              type: string
+              enum: [Tersedia, Habis]
+              example: Tersedia
+        harga_min:
+          type: number
+          format: float
+          description: Harga jual terendah
+          example: 3000.00
+        harga_max:
+          type: number
+          format: float
+          description: Harga jual tertinggi
+          example: 35000.00
+        variasi:
+          type: array
+          description: Variasi satuan produk
+          items:
+            type: object
+            properties:
+              nama_satuan:
+                type: string
+                example: Pcs
+              harga_jual:
+                type: number
+                format: float
+                example: 3500.00
+              konversi:
+                type: integer
+                example: 1
+              is_default:
+                type: boolean
+                example: true
+
+    # ----- User Schemas -----
+    User:
+      type: object
+      description: Data pengguna standar
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 2
+        name:
+          type: string
+          example: Budi Santoso
+        email:
+          type: string
+          format: email
+          example: budi@waroengkoe.com
+        role:
+          type: string
+          enum: [admin, kasir]
+          example: kasir
+        avatar:
+          type: string
+          nullable: true
+        is_online:
+          type: boolean
+          description: Status online (aktif dalam 5 menit terakhir)
+          example: true
+        can_view_activity_log:
+          type: boolean
+          example: false
+        can_manage_category:
+          type: boolean
+          example: true
+
+    UserDetail:
+      allOf:
+        - $ref: "#/components/schemas/User"
+        - type: object
+          description: Field tambahan untuk detail view
+          properties:
+            is_default_admin:
+              type: boolean
+              example: false
+            last_active_at:
+              type: string
+              format: date-time
+              nullable: true
+              example: "2025-01-15 14:30:00"
+            created_at:
+              type: string
+              format: date-time
+              example: "2025-01-01 10:00:00"
+            updated_at:
+              type: string
+              format: date-time
+              example: "2025-01-15 14:30:00"

@@ -1,0 +1,204 @@
+- generic [ref=f13e3]:
+  - complementary [ref=f13e4]:
+    - generic [ref=f13e5]:
+      - generic [ref=f13e6]:
+        - img "WaroengKoe Logo" [ref=f13e8] [cursor=pointer]
+        - generic:
+          - heading "WaroengKoe!" [level=1]
+          - generic: Smart System
+      - navigation [ref=f13e9]:
+        - link [ref=f13e10] [cursor=pointer]:
+          - /url: /kasir
+        - link [ref=f13e16] [cursor=pointer]:
+          - /url: /dashboard
+        - link [ref=f13e22] [cursor=pointer]:
+          - /url: /barang
+        - link [ref=f13e29] [cursor=pointer]:
+          - /url: /kategori
+        - link [ref=f13e37] [cursor=pointer]:
+          - /url: /satuan
+        - link [ref=f13e43] [cursor=pointer]:
+          - /url: /kasir/riwayat
+        - link [ref=f13e50] [cursor=pointer]:
+          - /url: /audit-stok
+        - link [ref=f13e56] [cursor=pointer]:
+          - /url: /keuntungan
+        - link [ref=f13e62] [cursor=pointer]:
+          - /url: /pengguna
+        - link [ref=f13e68] [cursor=pointer]:
+          - /url: /log-aktivitas
+        - link [ref=f13e74] [cursor=pointer]:
+          - /url: /pengaturan
+    - 'button "Tema: Sistem" [ref=f13e81]'
+    - generic [ref=f13e87]:
+      - generic [ref=f13e88]: A
+      - generic:
+        - paragraph: Admin
+        - paragraph: Admin Toko
+      - button "Logout"
+    - generic: WaroengKoe v2.2
+  - main [ref=f13e90]:
+    - generic [ref=f13e91]:
+      - heading "Data Barang" [level=1] [ref=f13e95]
+      - textbox "Cari nama barang, SKU... [F4 / Spasi]" [ref=f13e98]
+      - generic [ref=f13e100]:
+        - generic [ref=f13e101]: "12.30"
+        - generic [ref=f13e109]: 20 Jul 2026
+    - generic [ref=f13e119]:
+      - generic [ref=f13e121]:
+        - generic [ref=f13e122]:
+          - heading "Data Barang" [level=2] [ref=f13e123]
+          - paragraph [ref=f13e124]: Kelola inventaris produk toko Anda
+        - generic [ref=f13e125]:
+          - button "Export" [ref=f13e126] [cursor=pointer]
+          - button "Import" [ref=f13e132] [cursor=pointer]
+          - button "Tambah Produk" [ref=f13e138] [cursor=pointer]
+      - generic [ref=f13e144]:
+        - generic [ref=f13e146]:
+          - paragraph [ref=f13e147]: Total Produk
+          - heading "408" [level=3] [ref=f13e148]
+        - generic [ref=f13e155]:
+          - paragraph [ref=f13e156]: Stok Rendah / Habis
+          - heading "131 + 67" [level=3] [ref=f13e157]
+        - generic [ref=f13e164]:
+          - paragraph [ref=f13e165]: Total Nilai
+          - heading "Rp 10.293.626,47" [level=3] [ref=f13e166]
+      - generic [ref=f13e174]:
+        - button "Semua Kategori" [ref=f13e176] [cursor=pointer]
+        - button "Terbaru" [ref=f13e181] [cursor=pointer]
+      - generic [ref=f13e186]:
+        - table [ref=f13e188]:
+          - rowgroup [ref=f13e189]:
+            - row [ref=f13e190]:
+              - columnheader [ref=f13e191]:
+                - checkbox [ref=f13e192] [cursor=pointer]
+              - columnheader "No" [ref=f13e193]
+              - columnheader "Produk" [ref=f13e194]
+              - columnheader "Kategori" [ref=f13e195]
+              - columnheader "Harga" [ref=f13e196]
+              - columnheader "Stok" [ref=f13e197]
+              - columnheader "Terjual" [ref=f13e198]
+          - rowgroup [ref=f13e199]:
+            - row [ref=f13e200] [cursor=pointer]:
+              - cell [ref=f13e201]:
+                - checkbox [ref=f13e202]
+              - cell "1" [ref=f13e203]
+              - cell "Tolak Angin Anak" [ref=f13e204]:
+                - generic [ref=f13e207]:
+                  - text: Tolak Angin Anak
+                  - paragraph
+              - cell "Obat-Obatan" [ref=f13e208]
+              - cell "Rp 4.000" [ref=f13e209]
+              - cell "12 Pcs" [ref=f13e210]
+              - cell "0" [ref=f13e212]
+            - row [ref=f13e213] [cursor=pointer]:
+              - cell [ref=f13e214]:
+                - checkbox [ref=f13e215]
+              - cell "2" [ref=f13e216]
+              - cell "Kantong kresek cap botol uk. 15" [ref=f13e217]:
+                - generic [ref=f13e220]:
+                  - text: Kantong kresek cap botol uk. 15
+                  - paragraph
+              - cell "Lainnya" [ref=f13e221]
+              - cell "Rp 6.500" [ref=f13e222]
+              - cell "3 Pcs" [ref=f13e223]
+              - cell "1" [ref=f13e225]
+            - row [ref=f13e226] [cursor=pointer]:
+              - cell [ref=f13e227]:
+                - checkbox [ref=f13e228]
+              - cell "3" [ref=f13e229]
+              - cell "Mainan" [ref=f13e230]:
+                - generic [ref=f13e233]:
+                  - text: Mainan
+                  - paragraph
+              - cell "Jajanan" [ref=f13e234]
+              - cell "Rp 1.000" [ref=f13e235]
+              - cell "19 Pcs" [ref=f13e236]
+              - cell "1" [ref=f13e238]
+            - row [ref=f13e239] [cursor=pointer]:
+              - cell [ref=f13e240]:
+                - checkbox [ref=f13e241]
+              - cell "4" [ref=f13e242]
+              - cell "Tepung Panir" [ref=f13e243]:
+                - generic [ref=f13e246]:
+                  - text: Tepung Panir
+                  - paragraph
+              - cell "Bahan Kue" [ref=f13e247]
+              - cell "Rp 24 - Rp 24.000" [ref=f13e248]
+              - cell "2000 Pcs" [ref=f13e249]
+              - cell "0" [ref=f13e251]
+            - row [ref=f13e252] [cursor=pointer]:
+              - cell [ref=f13e253]:
+                - checkbox [ref=f13e254]
+              - cell "5" [ref=f13e255]
+              - cell "Drink Bengbeng 8996001431030" [ref=f13e256]:
+                - generic [ref=f13e259]:
+                  - text: Drink Bengbeng
+                  - paragraph [ref=f13e260]: "8996001431030"
+              - cell "Minuman Seduh" [ref=f13e261]
+              - cell "Rp 3.000" [ref=f13e262]
+              - cell "22 Pcs" [ref=f13e263]
+              - cell "0" [ref=f13e265]
+            - row [ref=f13e266] [cursor=pointer]:
+              - cell [ref=f13e267]:
+                - checkbox [ref=f13e268]
+              - cell "6" [ref=f13e269]
+              - cell "Desaku Balado 8997011931626" [ref=f13e270]:
+                - generic [ref=f13e273]:
+                  - text: Desaku Balado
+                  - paragraph [ref=f13e274]: "8997011931626"
+              - cell "Bumbu Instan" [ref=f13e275]
+              - cell "Rp 3.000" [ref=f13e276]
+              - cell "20 Pcs" [ref=f13e277]
+              - cell "0" [ref=f13e279]
+            - row [ref=f13e280] [cursor=pointer]:
+              - cell [ref=f13e281]:
+                - checkbox [ref=f13e282]
+              - cell "7" [ref=f13e283]
+              - cell "Tepung Terigu Segitiga" [ref=f13e284]:
+                - generic [ref=f13e287]:
+                  - text: Tepung Terigu Segitiga
+                  - paragraph
+              - cell "Sembako" [ref=f13e288]
+              - cell "Rp 12 - Rp 11.000" [ref=f13e289]
+              - cell "3750 Pcs" [ref=f13e290]
+              - cell "0" [ref=f13e292]
+            - row [ref=f13e293] [cursor=pointer]:
+              - cell [ref=f13e294]:
+                - checkbox [ref=f13e295]
+              - cell "8" [ref=f13e296]
+              - cell "Tepung Terigu Payung" [ref=f13e297]:
+                - generic [ref=f13e300]:
+                  - text: Tepung Terigu Payung
+                  - paragraph
+              - cell "Sembako" [ref=f13e301]
+              - cell "Rp 10 - Rp 10.000" [ref=f13e302]
+              - cell "0 Pcs" [ref=f13e303]
+              - cell "1000" [ref=f13e305]
+            - row [ref=f13e306] [cursor=pointer]:
+              - cell [ref=f13e307]:
+                - checkbox [ref=f13e308]
+              - cell "9" [ref=f13e309]
+              - cell "Jazy Poppin 4993990611607" [ref=f13e310]:
+                - generic [ref=f13e313]:
+                  - text: Jazy Poppin
+                  - paragraph [ref=f13e314]: "4993990611607"
+              - cell "Rokok" [ref=f13e315]
+              - cell "Rp 27.000" [ref=f13e316]
+              - cell "6 Pcs" [ref=f13e317]
+              - cell "4" [ref=f13e319]
+            - row [ref=f13e320] [cursor=pointer]:
+              - cell [ref=f13e321]:
+                - checkbox [ref=f13e322]
+              - cell "10" [ref=f13e323]
+              - cell "Jazy Bold 8993996212019" [ref=f13e324]:
+                - generic [ref=f13e327]:
+                  - text: Jazy Bold
+                  - paragraph [ref=f13e328]: "8993996212019"
+              - cell "Rokok" [ref=f13e329]
+              - cell "Rp 30.000" [ref=f13e330]
+              - cell "3 Pcs" [ref=f13e331]
+              - cell "0" [ref=f13e333]
+        - generic [ref=f13e335]:
+          - button "Sebelumnya" [disabled] [ref=f13e336] [cursor=pointer]
+          - button "Berikutnya" [ref=f13e342] [cursor=pointer]

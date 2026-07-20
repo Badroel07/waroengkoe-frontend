@@ -1,0 +1,23 @@
+- generic [ref=f4e3]:
+  - generic [ref=f4e7]:
+    - generic [ref=f4e8]:
+      - img "WaroengKoe Logo" [ref=f4e10] [cursor=pointer]
+      - heading "WaroengKoe" [level=1] [ref=f4e11]
+      - paragraph [ref=f4e12]: Premium Point of Sale
+      - heading "Selamat Datang" [level=2] [ref=f4e13]
+    - link "Masuk via Google" [ref=f4e14] [cursor=pointer]:
+      - /url: /auth/google
+    - generic [ref=f4e21]: Kredensial Email
+    - generic [ref=f4e26]:
+      - textbox "Alamat Email" [active] [ref=f4e31]: ad
+      - generic [ref=f4e32]:
+        - textbox "Kata Sandi" [ref=f4e36]
+        - button [ref=f4e37]
+      - generic [ref=f4e42] [cursor=pointer]:
+        - checkbox "Ingat Saya" [ref=f4e44]
+        - generic [ref=f4e45]: Ingat Saya
+      - button "Login Sekarang" [ref=f4e46]
+    - paragraph [ref=f4e51]: © 2026 WaroengKoe! • Smart POS System
+  - generic [ref=f4e56]:
+    - heading "Kelola Toko Lebih Elegant" [level=2] [ref=f4e61]
+    - paragraph [ref=f4e62]: Sistem Kasir Modern dengan Pengalaman Visual yang Memukau di Setiap Klik.

@@ -1,0 +1,72 @@
+- generic [ref=f12e101]:
+  - complementary [ref=f12e102]:
+    - generic [ref=f12e103]:
+      - generic [ref=f12e104]:
+        - img "WaroengKoe Logo" [ref=f12e106] [cursor=pointer]
+        - generic:
+          - heading "WaroengKoe!" [level=1]
+          - generic: Smart System
+      - navigation [ref=f12e107]:
+        - link [ref=f12e108] [cursor=pointer]:
+          - /url: /kasir
+        - link [ref=f12e115] [cursor=pointer]:
+          - /url: /dashboard
+        - link [ref=f12e121] [cursor=pointer]:
+          - /url: /barang
+        - link [ref=f12e127] [cursor=pointer]:
+          - /url: /kategori
+        - link [ref=f12e135] [cursor=pointer]:
+          - /url: /satuan
+        - link [ref=f12e141] [cursor=pointer]:
+          - /url: /kasir/riwayat
+        - link [ref=f12e148] [cursor=pointer]:
+          - /url: /audit-stok
+        - link [ref=f12e154] [cursor=pointer]:
+          - /url: /keuntungan
+        - link [ref=f12e160] [cursor=pointer]:
+          - /url: /pengguna
+        - link [ref=f12e166] [cursor=pointer]:
+          - /url: /log-aktivitas
+        - link [ref=f12e172] [cursor=pointer]:
+          - /url: /pengaturan
+    - 'button "Tema: Sistem" [ref=f12e179]'
+    - generic [ref=f12e185]:
+      - generic [ref=f12e186]: A
+      - generic:
+        - paragraph: Admin
+        - paragraph: Admin Toko
+      - button "Logout"
+    - generic: WaroengKoe v2.2
+  - main [ref=f12e188]:
+    - generic [ref=f12e189]:
+      - heading "Kasir" [level=1] [ref=f12e193]
+      - textbox "Cari produk, SKU... [F4 / Spasi]" [ref=f12e196]
+      - generic [ref=f12e198]:
+        - button "Voice Scan" [ref=f12e199] [cursor=pointer]
+        - button "Scan Barcode" [ref=f12e205] [cursor=pointer]
+      - generic [ref=f12e212]:
+        - generic [ref=f12e213]: "12.30"
+        - generic [ref=f12e221]: 20 Jul 2026
+    - generic [ref=f12e228]:
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - generic:
+                  - generic:
+                    - heading "Daftar Produk" [level=2]
+                    - paragraph: Pilih Produk atau Scan Barcode
+                  - generic:
+                    - button "Semua"
+                    - button "A-Z"
+              - generic:
+                - heading "Semua Produk(0 item)" [level=3]:
+                  - text: Semua Produk
+                  - generic: (0 item)
+                - generic:
+                  - paragraph: Tidak Ada Barang
+                  - paragraph: Belum ada produk yang tersedia untuk dijual. Tambahkan produk atau sesuaikan filter Anda.
+                  - link "Kelola Data Barang":
+                    - /url: /barang
+          - button "Buka Keranjang"

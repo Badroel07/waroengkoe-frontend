@@ -1,0 +1,208 @@
+- generic [ref=f4e3]:
+  - complementary [ref=f4e4]:
+    - generic [ref=f4e5]:
+      - generic [ref=f4e6]:
+        - img "WaroengKoe Logo" [ref=f4e8] [cursor=pointer]
+        - generic:
+          - heading "WaroengKoe!" [level=1]
+          - generic: Smart System
+      - navigation [ref=f4e9]:
+        - link [ref=f4e10] [cursor=pointer]:
+          - /url: /kasir
+        - link [ref=f4e16] [cursor=pointer]:
+          - /url: /dashboard
+        - link [ref=f4e22] [cursor=pointer]:
+          - /url: /barang
+        - link [ref=f4e29] [cursor=pointer]:
+          - /url: /kategori
+        - link [ref=f4e37] [cursor=pointer]:
+          - /url: /satuan
+        - link [ref=f4e43] [cursor=pointer]:
+          - /url: /kasir/riwayat
+        - link [ref=f4e50] [cursor=pointer]:
+          - /url: /audit-stok
+        - link [ref=f4e56] [cursor=pointer]:
+          - /url: /keuntungan
+        - link [ref=f4e62] [cursor=pointer]:
+          - /url: /pengguna
+        - link [ref=f4e68] [cursor=pointer]:
+          - /url: /log-aktivitas
+        - link [ref=f4e74] [cursor=pointer]:
+          - /url: /pengaturan
+    - 'button "Tema: Sistem" [ref=f4e81]'
+    - generic [ref=f4e87]:
+      - generic [ref=f4e88]: A
+      - generic:
+        - paragraph: Admin
+        - paragraph: Admin Toko
+      - button "Logout"
+    - generic: WaroengKoe v2.2
+  - main [ref=f4e90]:
+    - generic [ref=f4e91]:
+      - heading "Data Barang" [level=1] [ref=f4e95]
+      - textbox "Cari nama barang, SKU... [F4 / Spasi]" [ref=f4e98]
+      - generic [ref=f4e100]:
+        - generic [ref=f4e101]: "15.08"
+        - generic [ref=f4e109]: 20 Jul 2026
+    - generic [ref=f4e118]:
+      - generic [ref=f4e120]:
+        - generic [ref=f4e121]:
+          - heading "Data Barang" [level=2] [ref=f4e122]
+          - paragraph [ref=f4e123]: Kelola inventaris produk toko Anda
+        - generic [ref=f4e124]:
+          - button "Export" [ref=f4e125]
+          - button "Import" [ref=f4e131]
+          - button "Tambah Produk" [ref=f4e137]
+      - generic [ref=f4e143]:
+        - generic [ref=f4e146]:
+          - paragraph [ref=f4e147]: Total Produk
+          - heading "408" [level=3] [ref=f4e148]
+        - generic [ref=f4e156]:
+          - paragraph [ref=f4e157]: Stok Rendah / Habis
+          - heading "62 + 67" [level=3] [ref=f4e158]
+        - generic [ref=f4e166]:
+          - paragraph [ref=f4e167]: Total Nilai
+          - heading "Rp 10.293.626,47" [level=3] [ref=f4e168]
+      - generic [ref=f4e176]:
+        - generic [ref=f4e177]: Filter Kategori
+        - button "Semua Kategori" [ref=f4e179] [cursor=pointer]
+        - generic [ref=f4e183]: Urutkan
+        - button "Terbaru" [ref=f4e185] [cursor=pointer]
+      - generic [ref=f4e190]:
+        - table [ref=f4e192]:
+          - rowgroup [ref=f4e193]:
+            - row "Pilih semua baris No Produk Kategori Harga Stok Terjual" [ref=f4e194]:
+              - columnheader "Pilih semua baris" [ref=f4e195]:
+                - checkbox "Pilih semua baris" [ref=f4e196] [cursor=pointer]
+              - columnheader "No" [ref=f4e197]
+              - columnheader "Produk" [ref=f4e198]
+              - columnheader "Kategori" [ref=f4e199]
+              - columnheader "Harga" [ref=f4e200]
+              - columnheader "Stok" [ref=f4e201]
+              - columnheader "Terjual" [ref=f4e202]
+          - rowgroup [ref=f4e203]:
+            - row "Pilih Tolak Angin Anak 1 Tolak Angin Anak - Obat-Obatan Rp 4.000 12 Pcs 0" [ref=f4e204] [cursor=pointer]:
+              - cell "Pilih Tolak Angin Anak" [ref=f4e205]:
+                - checkbox "Pilih Tolak Angin Anak" [ref=f4e206]
+              - cell "1" [ref=f4e207]
+              - cell "Tolak Angin Anak -" [ref=f4e208]:
+                - generic [ref=f4e212]:
+                  - generic [ref=f4e213]: Tolak Angin Anak
+                  - text: "-"
+              - cell "Obat-Obatan" [ref=f4e219]
+              - cell "Rp 4.000" [ref=f4e220]
+              - cell "12 Pcs" [ref=f4e221]
+              - cell "0" [ref=f4e223]
+            - row "Pilih Kantong kresek cap botol uk. 15 2 Kantong kresek cap botol uk. 15 - Lainnya Rp 6.500 3 Pcs 1" [ref=f4e224] [cursor=pointer]:
+              - cell "Pilih Kantong kresek cap botol uk. 15" [ref=f4e225]:
+                - checkbox "Pilih Kantong kresek cap botol uk. 15" [ref=f4e226]
+              - cell "2" [ref=f4e227]
+              - cell "Kantong kresek cap botol uk. 15 -" [ref=f4e228]:
+                - generic [ref=f4e232]:
+                  - generic [ref=f4e233]: Kantong kresek cap botol uk. 15
+                  - text: "-"
+              - cell "Lainnya" [ref=f4e239]
+              - cell "Rp 6.500" [ref=f4e240]
+              - cell "3 Pcs" [ref=f4e241]
+              - cell "1" [ref=f4e243]
+            - row "Pilih Mainan 3 Mainan - Jajanan Rp 1.000 19 Pcs 1" [ref=f4e244] [cursor=pointer]:
+              - cell "Pilih Mainan" [ref=f4e245]:
+                - checkbox "Pilih Mainan" [ref=f4e246]
+              - cell "3" [ref=f4e247]
+              - cell "Mainan -" [ref=f4e248]:
+                - generic [ref=f4e252]:
+                  - generic [ref=f4e253]: Mainan
+                  - text: "-"
+              - cell "Jajanan" [ref=f4e259]
+              - cell "Rp 1.000" [ref=f4e260]
+              - cell "19 Pcs" [ref=f4e261]
+              - cell "1" [ref=f4e263]
+            - row "Pilih Tepung Panir 4 Tepung Panir - Bahan Kue Rp 24 - Rp 24.000 2000 Pcs 0" [ref=f4e264] [cursor=pointer]:
+              - cell "Pilih Tepung Panir" [ref=f4e265]:
+                - checkbox "Pilih Tepung Panir" [ref=f4e266]
+              - cell "4" [ref=f4e267]
+              - cell "Tepung Panir -" [ref=f4e268]:
+                - generic [ref=f4e272]:
+                  - generic [ref=f4e273]: Tepung Panir
+                  - text: "-"
+              - cell "Bahan Kue" [ref=f4e279]
+              - cell "Rp 24 - Rp 24.000" [ref=f4e280]
+              - cell "2000 Pcs" [ref=f4e281]
+              - cell "0" [ref=f4e283]
+            - row "Pilih Drink Bengbeng 5 Drink Bengbeng 8996001431030 Minuman Seduh Rp 3.000 22 Pcs 0" [ref=f4e284] [cursor=pointer]:
+              - cell "Pilih Drink Bengbeng" [ref=f4e285]:
+                - checkbox "Pilih Drink Bengbeng" [ref=f4e286]
+              - cell "5" [ref=f4e287]
+              - cell "Drink Bengbeng 8996001431030" [ref=f4e288]:
+                - generic [ref=f4e292]:
+                  - generic [ref=f4e293]: Drink Bengbeng
+                  - text: "8996001431030"
+              - cell "Minuman Seduh" [ref=f4e299]
+              - cell "Rp 3.000" [ref=f4e300]
+              - cell "22 Pcs" [ref=f4e301]
+              - cell "0" [ref=f4e303]
+            - row "Pilih Desaku Balado 6 Desaku Balado 8997011931626 Bumbu Instan Rp 3.000 20 Pcs 0" [ref=f4e304] [cursor=pointer]:
+              - cell "Pilih Desaku Balado" [ref=f4e305]:
+                - checkbox "Pilih Desaku Balado" [ref=f4e306]
+              - cell "6" [ref=f4e307]
+              - cell "Desaku Balado 8997011931626" [ref=f4e308]:
+                - generic [ref=f4e312]:
+                  - generic [ref=f4e313]: Desaku Balado
+                  - text: "8997011931626"
+              - cell "Bumbu Instan" [ref=f4e319]
+              - cell "Rp 3.000" [ref=f4e320]
+              - cell "20 Pcs" [ref=f4e321]
+              - cell "0" [ref=f4e323]
+            - row "Pilih Tepung Terigu Segitiga 7 Tepung Terigu Segitiga - Sembako Rp 12 - Rp 11.000 3750 Pcs 0" [ref=f4e324] [cursor=pointer]:
+              - cell "Pilih Tepung Terigu Segitiga" [ref=f4e325]:
+                - checkbox "Pilih Tepung Terigu Segitiga" [ref=f4e326]
+              - cell "7" [ref=f4e327]
+              - cell "Tepung Terigu Segitiga -" [ref=f4e328]:
+                - generic [ref=f4e332]:
+                  - generic [ref=f4e333]: Tepung Terigu Segitiga
+                  - text: "-"
+              - cell "Sembako" [ref=f4e339]
+              - cell "Rp 12 - Rp 11.000" [ref=f4e340]
+              - cell "3750 Pcs" [ref=f4e341]
+              - cell "0" [ref=f4e343]
+            - row "Pilih Tepung Terigu Payung 8 Tepung Terigu Payung - Sembako Rp 10 - Rp 10.000 0 Pcs 1000" [ref=f4e344] [cursor=pointer]:
+              - cell "Pilih Tepung Terigu Payung" [ref=f4e345]:
+                - checkbox "Pilih Tepung Terigu Payung" [ref=f4e346]
+              - cell "8" [ref=f4e347]
+              - cell "Tepung Terigu Payung -" [ref=f4e348]:
+                - generic [ref=f4e352]:
+                  - generic [ref=f4e353]: Tepung Terigu Payung
+                  - text: "-"
+              - cell "Sembako" [ref=f4e359]
+              - cell "Rp 10 - Rp 10.000" [ref=f4e360]
+              - cell "0 Pcs" [ref=f4e361]
+              - cell "1000" [ref=f4e363]
+            - row "Pilih Jazy Poppin 9 Jazy Poppin 4993990611607 Rokok Rp 27.000 6 Pcs 4" [ref=f4e364] [cursor=pointer]:
+              - cell "Pilih Jazy Poppin" [ref=f4e365]:
+                - checkbox "Pilih Jazy Poppin" [ref=f4e366]
+              - cell "9" [ref=f4e367]
+              - cell "Jazy Poppin 4993990611607" [ref=f4e368]:
+                - generic [ref=f4e372]:
+                  - generic [ref=f4e373]: Jazy Poppin
+                  - text: "4993990611607"
+              - cell "Rokok" [ref=f4e379]
+              - cell "Rp 27.000" [ref=f4e380]
+              - cell "6 Pcs" [ref=f4e381]
+              - cell "4" [ref=f4e383]
+            - row "Pilih Jazy Bold 10 Jazy Bold 8993996212019 Rokok Rp 30.000 3 Pcs 0" [ref=f4e384] [cursor=pointer]:
+              - cell "Pilih Jazy Bold" [ref=f4e385]:
+                - checkbox "Pilih Jazy Bold" [ref=f4e386]
+              - cell "10" [ref=f4e387]
+              - cell "Jazy Bold 8993996212019" [ref=f4e388]:
+                - generic [ref=f4e392]:
+                  - generic [ref=f4e393]: Jazy Bold
+                  - text: "8993996212019"
+              - cell "Rokok" [ref=f4e399]
+              - cell "Rp 30.000" [ref=f4e400]
+              - cell "3 Pcs" [ref=f4e401]
+              - cell "0" [ref=f4e403]
+        - generic [ref=f4e405]:
+          - button "Halaman Sebelumnya" [disabled] [ref=f4e406]:
+            - generic [ref=f4e411]: Sebelumnya
+          - button "Halaman Berikutnya" [ref=f4e412]:
+            - generic [ref=f4e413]: Berikutnya
