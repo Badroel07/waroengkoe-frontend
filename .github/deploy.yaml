@@ -1,9 +1,17 @@
-name: Deploy React Vite to CloudPanel
+name: Deploy WaroengKoe Frontend ke Server
 
 on:
   push:
     branches:
-      - main # Jalankan otomatis saat push ke branch main
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: 20
 
 jobs:
   build-and-deploy:
@@ -16,7 +24,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
       - name: Install Dependencies
@@ -24,17 +32,32 @@ jobs:
 
       - name: Build Project
         run: npm run build
-        # Langkah ini menghasilkan folder 'dist'
+
+      - name: Verify Build Output
+        run: |
+          if [ ! -d "dist" ]; then
+            echo "❌ Build gagal: direktori 'dist' tidak ditemukan"
+            exit 1
+          fi
+          echo "✅ Build berhasil. Ukuran: $(du -sh dist | cut -f1)"
 
       - name: Install SSH Key
-        uses: shimataro/ssh-key-action@v2
+        uses: shimataro/ssh-key-action@v3
         with:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          known_hosts: 'just-a-placeholder-will-update-next-step'
+          known_hosts: ${{ secrets.SERVER_HOST }}
 
       - name: Adding Known Hosts
         run: ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Deploy to CloudPanel via RSYNC
+      - name: Deploy via RSYNC
         run: |
-          rsync -avz --delete dist/ ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/home/${{ secrets.SERVER_USER }}/htdocs/
+          rsync -avz --delete --checksum \
+            --exclude '.htaccess' \
+            dist/ \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/home/${{ secrets.SERVER_USER }}/htdocs/${{ secrets.SITE_DOMAIN }}/
+
+      - name: Verifikasi Deploy
+        run: |
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+            "ls -la /home/${{ secrets.SERVER_USER }}/htdocs/${{ secrets.SITE_DOMAIN }}/index.html && echo '✅ Deploy berhasil: index.html terverifikasi'"
