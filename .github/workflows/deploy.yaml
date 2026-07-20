@@ -49,14 +49,25 @@ jobs:
       - name: Add Server to Known Hosts
         run: ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
 
+      - name: Debug SSH Connection
+        run: |
+          echo "🧪 SSH Agent Keys:"
+          ssh-add -l
+          echo "---"
+          echo "🧪 Test SSH Connection (verbose):"
+          ssh -o StrictHostKeyChecking=accept-new \
+            -v ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+            "echo '✅ SSH OK'" 2>&1 || true
+
       - name: Deploy via RSYNC
         run: |
           rsync -avz --delete --checksum \
             --exclude '.htaccess' \
+            -e "ssh -o StrictHostKeyChecking=accept-new" \
             dist/ \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/home/${{ secrets.SERVER_USER }}/htdocs/${{ secrets.SITE_DOMAIN }}/
 
       - name: Verifikasi Deploy
         run: |
-          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+          ssh -o StrictHostKeyChecking=accept-new ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
             "ls -la /home/${{ secrets.SERVER_USER }}/htdocs/${{ secrets.SITE_DOMAIN }}/index.html && echo '✅ Deploy berhasil: index.html terverifikasi'"
