@@ -35,7 +35,7 @@ export default function Topbar({ title, onToggleSidebar, searchConfig, actionBut
 
   return (
     <header className="flex h-[72px] items-center bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800/60 px-4 md:px-8 py-3 z-30 fixed top-0 left-0 right-0 md:sticky md:top-0 gap-2 md:gap-4">
-      <button onClick={onToggleSidebar} className="md:hidden mr-1 size-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-400">
+      <button onClick={onToggleSidebar} className="hidden mr-1 size-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-400">
         <Icon name="menu" className="text-xl" />
       </button>
 

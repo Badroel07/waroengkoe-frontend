@@ -195,7 +195,7 @@ export default function AppLayout({
       <div className="flex flex-col md:flex-row min-h-screen md:h-screen w-full bg-slate-50 dark:bg-slate-950 md:overflow-hidden">
         {sidebarMobileOpen && (
           <div
-            className="fixed inset-0 bg-black/50 z-40 md:hidden"
+            className="fixed inset-0 bg-black/50 z-40 hidden"
             onClick={closeMobileSidebar}
           />
         )}
