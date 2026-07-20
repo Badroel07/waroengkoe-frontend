@@ -127,7 +127,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => {
         if (params?.kasir_id) query.set('kasir_id', params.kasir_id);
 
         const qs = query.toString();
-        const res = await apiFetch(`/kasir/riwayat${qs ? `?${qs}` : ''}`);
+        const res = await apiFetch(`/api/kasir/riwayat${qs ? `?${qs}` : ''}`);
 
         const history = res.history || { data: [], meta: { nextCursor: null, prevCursor: null, hasMore: false } };
         const formatted = (history.data || []).map(mapBackendTransaction);
@@ -149,7 +149,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => {
 
     fetchTransactionDetail: async (id: string) => {
       try {
-        const res = await apiFetch(`/kasir/riwayat/detail/${id}`);
+        const res = await apiFetch(`/api/kasir/riwayat/detail/${id}`);
         const raw = res.transaksi || res;
         const formatted = mapBackendTransaction(raw);
         set((s) => {
