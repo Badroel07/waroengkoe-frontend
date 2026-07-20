@@ -1,3 +1,5 @@
+const API_BASE_URL = 'https://warungbunda.my.id';
+
 export function dataURLtoBlob(dataurl: string): Blob {
   const arr = dataurl.split(',');
   const mimeMatch = arr[0].match(/:(.*?);/);
@@ -39,7 +41,7 @@ export async function apiFetch<T = any>(
   }
 
   try {
-    const response = await fetch(`${path}`, {
+    const response = await fetch(`${API_BASE_URL}${path}`, {
       ...options,
       headers,
       signal: controller.signal,

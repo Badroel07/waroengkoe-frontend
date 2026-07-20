@@ -11,11 +11,5 @@ export default defineConfig({
     },
   },
   server: {
-    proxy: {
-      '/api': {
-        target: 'https://warungbunda.my.id',
-        changeOrigin: true,
-      },
-    },
   },
 })
